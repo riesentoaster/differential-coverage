@@ -1,0 +1,20 @@
+name: Setup
+description: Checkout, set up Python, and install package with dev dependencies
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install package and test dependencies
+      run: pip install -e .[dev]
+      shell: bash
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: true
