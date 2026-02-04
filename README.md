@@ -23,10 +23,10 @@ $$
 This can be simplified to the following:
 
 $$
-\text{differential coverage}(f,e) = \text{\# fuzzers that never hit }e
+\text{differential coverage}(f,e) = \text{number of fuzzers that never hit }e
 \times\frac
-{\text{\# trials of }f\text{ that hit }e}
-{\text{\# trials of }f\text{ with non-empty cov}}
+{\text{number of trials of }f\text{ that hit }e}
+{\text{number of trials of }f\text{ with non-empty cov}}
 $$
 $$
 \text{score}(f) = \text{sum of differential coverage}(f,e)\text{ over all edges e}
