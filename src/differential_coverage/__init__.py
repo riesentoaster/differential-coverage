@@ -94,7 +94,7 @@ def calculate_differential_coverage_scores(
     return scores
 
 
-def calculate_scores_for_campaign(root: Path) -> dict[str, float]:
+def read_campaign_and_calculate_score(root: Path) -> dict[str, float]:
     if not root.is_dir():
         raise ValueError(f"Not a directory: {root}")
 
@@ -114,7 +114,7 @@ def main() -> None:
     args = p.parse_args()
 
     root = args.dir.resolve()
-    scores = calculate_scores_for_campaign(root)
+    scores = read_campaign_and_calculate_score(root)
     for fuzzer, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
         print(f"{fuzzer}: {score:.2f}")
 

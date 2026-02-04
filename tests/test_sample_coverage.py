@@ -1,9 +1,9 @@
 from pathlib import Path
-from differential_coverage import calculate_scores_for_campaign
+from differential_coverage import read_campaign_and_calculate_score
 
 
 def test_sample_coverage() -> None:
-    scores = calculate_scores_for_campaign(
+    scores = read_campaign_and_calculate_score(
         (Path(__file__).parent / "sample_coverage").resolve()
     )
     assert scores == {

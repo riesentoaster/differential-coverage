@@ -32,10 +32,6 @@ dev = ["mypy>=1.19.1", "pre-commit>=4.3.0", "pytest>=9.0.2", "ruff>=0.15.0"]
 Repository = "https://github.com/valentinhuber/differential_coverage"
 Documentation = "https://github.com/valentinhuber/differential_coverage#readme"
 
-[tool.mypy]
-explicit_package_bases = true
-mypy_path = "src"
-
 [tool.setuptools.packages.find]
 where = ["src"]
 

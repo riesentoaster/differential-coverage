@@ -33,16 +33,16 @@ $$
 $$
 
 ## Usage
-```
-differential_coverage <input_dir>
-# or: python -m differential_coverage <input_dir>
-```
-
-Where `<input_dir>` is a directory of directories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
+Assume `<input_dir>` is a directory of directories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
 
 PRs for other data formats welcome :)
 
-## Example
+### Command Line Interface
+```
+differential_coverage <input_dir>
+```
+
+#### Example
 [`tests/sample_coverage`](./tests/sample_coverage/) provides sample coverage data to explain differential coverage. It contains 3 fuzzers and 3 edges:
 - Edge 1 is always hit by all fuzzers
 - Edge 2 is always hit by `fuzzer_c`, sometimes hit by `fuzzer_a`, and never hit by `fuzzer_b`
@@ -51,11 +51,29 @@ PRs for other data formats welcome :)
 ```
 differential_coverage tests/sample_coverage
 ```
-produces
+then produces
 ```
 fuzzer_c: 1.00
 fuzzer_a: 0.50
 fuzzer_b: 0.00
+```
+### API
+
+```python
+from pathlib import Path
+from differential_coverage import (
+    calculate_scores_for_campaign,
+    calculate_differential_coverage_scores,
+)
+
+# From a campaign directory (one subdir per fuzzer, each with coverage files):
+scores = read_campaign_and_calculate_score(Path("path/to/campaign_dir"))
+# -> dict[str, float]: fuzzer name -> score
+
+# From in-memory campaign data (fuzzer -> trial_id -> edge_id -> count):
+campaign = {...}  # dict[str, dict[str, dict[int, int]]]
+scores = calculate_differential_coverage_scores(campaign)
+# -> dict[str, float]: fuzzer name -> score
 ```
 
 ## Installation
