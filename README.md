@@ -80,20 +80,23 @@ $$
 $$
 
 ## Usage
+
+> Disclaimer: This is subject to change.
+
 Assume `<campaign_dir>` is a directory of subdirectories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
 
 PRs for other data formats welcome :)
 
 ### Command Line Interface
 
-All commands take the same campaign directory layout: one subdirectory per fuzzer, each with afl-showmap coverage files.
+All commands take the same campaign directory layout: one subdirectory per fuzzer, each with afl-showmap coverage files. Use `-o csv` for machine-readable output.
 
 ```bash
 differential-coverage --help
 ```
 
 ```
-usage: differential-coverage [-h] [-x FUZZER] command ...
+usage: differential-coverage [-h] [-x FUZZER] [--output FORMAT] command ...
 
 Compute differential coverage relscore and relcov-based measures from afl-showmap coverage. All commands take one campaign directory: one subdir per fuzzer, each with coverage files.
 
@@ -101,6 +104,7 @@ options:
   -h, --help            show this help message and exit
   -x, --exclude-fuzzer FUZZER
                         Exclude a fuzzer (subdirectory name) from the analysis. Can be specified multiple times.
+  --output, -o FORMAT   Output format: csv for CSV (default: print to stdout).
 
 subcommands:
   command
@@ -114,16 +118,18 @@ subcommands:
 
 ### API
 
-Load a campaign from disk and run the same computations programmatically:
+Load a campaign from disk and run the same computations programmatically. The API lives in `differential_coverage.api`:
 
 ```python
 from pathlib import Path
-from differential_coverage import (
+from differential_coverage.api import (
     read_campaign,
     run_relscore,
     run_relcov_reliability,
     run_relcov_performance_fuzzer,
+    run_relcov_performance_fuzzer_all,
     run_relcov_performance_corpus,
+    run_relcov_performance_corpus_all,
 )
 
 path = Path("path/to/campaign_dir")
@@ -138,11 +144,17 @@ reliability = run_relcov_reliability(campaign)
 # Relcov performance vs a reference fuzzer (reference excluded from result)
 perf = run_relcov_performance_fuzzer(campaign, against="fuzzer_c")
 
-# Relcov performance over input corpus (that fuzzer must have exactly one trial)
+# Relcov performance vs every fuzzer as reference: (ref_fuzzers, table[row][col])
+ref_fuzzers, table = run_relcov_performance_fuzzer_all(campaign)
+
+# Relcov performance over input corpus (corpus fuzzer must have exactly one trial)
 perf_corpus = run_relcov_performance_corpus(campaign, input_corpus_fuzzer="seeds")
+
+# Relcov performance over every single-trial corpus: (corpus_fuzzers, table[row][col])
+corpus_fuzzers, corpus_table = run_relcov_performance_corpus_all(campaign)
 ```
 
-All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. They return `dict[str, float]` (fuzzer name → value). `run_relcov_performance_fuzzer` and `run_relcov_performance_corpus` raise `ValueError` if the reference or input-corpus fuzzer is missing or (for corpus) has more than one trial.
+All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. The single-reference functions return `dict[str, float]` (fuzzer name → value). The `*_all` functions return `(list_of_refs, table)` where `table[row_fuzzer][ref_fuzzer]` is the score (1.0 on the diagonal). `run_relcov_performance_fuzzer` and `run_relcov_performance_corpus` raise `ValueError` if the reference or input-corpus fuzzer is missing or (for corpus) has more than one trial.
 
 ## Installation
 ```bash
