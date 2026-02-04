@@ -38,7 +38,7 @@ pip install .
 ```
 
 ## Development
-Install dev dependencies and set up the pre-commit hook (runs [ruff](https://docs.astral.sh/ruff/)):
+Install dev dependencies and set up the pre-commit hook (runs a couple of checks before committing):
 ```bash
 pip install -e ".[dev]"
 pre-commit install
