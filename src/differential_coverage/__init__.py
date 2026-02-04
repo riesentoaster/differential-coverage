@@ -94,7 +94,15 @@ def calculate_differential_coverage_scores(
     return scores
 
 
-def main():
+def calculate_scores_for_campaign(root: Path) -> dict[str, float]:
+    if not root.is_dir():
+        raise ValueError(f"Not a directory: {root}")
+
+    campaign_data = read_campaign_dir(root)
+    return calculate_differential_coverage_scores(campaign_data)
+
+
+def main() -> None:
     p = argparse.ArgumentParser(
         description="Compute differential coverage from afl-showmap coverage dirs."
     )
@@ -104,15 +112,12 @@ def main():
         help="Directory containing one subdir per fuzzer with coverage files",
     )
     args = p.parse_args()
-    root = args.dir.resolve()
-    if not root.is_dir():
-        p.error(f"Not a directory: {root}")
 
-    campaign = read_campaign_dir(root)
-    scores = calculate_differential_coverage_scores(campaign)
+    root = args.dir.resolve()
+    scores = calculate_scores_for_campaign(root)
     for fuzzer, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
         print(f"{fuzzer}: {score:.2f}")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

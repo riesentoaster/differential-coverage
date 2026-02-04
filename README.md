@@ -32,9 +32,22 @@ $$
 \text{score}(f) = \text{sum of differential coverage}(f,e)\text{ over all edges e}
 $$
 
+## Installation
+```bash
+pip install .
+```
+
+## Development
+Install dev dependencies and set up the pre-commit hook (runs [ruff](https://docs.astral.sh/ruff/)):
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
+
 ## Usage
 ```
-python3 differential_coverage.py <input_dir>
+differential_coverage <input_dir>
+# or: python -m differential_coverage <input_dir>
 ```
 
 Where `<input_dir>` is a directory of directories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
@@ -42,13 +55,13 @@ Where `<input_dir>` is a directory of directories for each fuzzer, where each fu
 PRs for other data formats welcome :)
 
 ## Example
-[`sample_coverage`](./sample_coverage/) provides sample coverage data to explain differential coverage. It contains 3 fuzzers and 3 edges:
+[`tests/sample_coverage`](./tests/sample_coverage/) provides sample coverage data to explain differential coverage. It contains 3 fuzzers and 3 edges:
 - Edge 1 is always hit by all fuzzers
 - Edge 2 is always hit by `fuzzer_c`, sometimes hit by `fuzzer_a`, and never hit by `fuzzer_b`
 - Edge 3 is always hit by `fuzzer_b` and `fuzzer_c`, but only sometimes by `fuzzer_a`
 
 ```
-python3 differential_coverage.py sample_coverage
+differential_coverage tests/sample_coverage
 ```
 produces
 ```
