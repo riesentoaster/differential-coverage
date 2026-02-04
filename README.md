@@ -33,6 +33,13 @@ $$
 \text{reliability}(f)=\text{med}({\text{relcov}(\text{cov}(t),f)})\quad\forall t\in T_f
 $$
 
+#### Performance over Input Corpus
+
+The performance of a fuzzer $f$ over its input corpus is how much extra coverage it can reach past what is already reached in the input corpus. It is calculated as `relcov` of the coverage of the input corpus $c_\text{input-corpus}$ and the fuzzer. As a formula:
+
+$$
+\text{performance-over-input-corpus}(f)=\text{relcov}(c_\text{input-corpus},f)
+$$
 
 #### Performance over other fuzzers
 
@@ -40,14 +47,6 @@ The relative performance of a fuzzer $f_1$ relative to another fuzzer $f_2$ (or 
 
 $$
 \text{performance-over-fuzzer}(f_1, f_2)=\text{med}({\text{relcov}(\text{cov}(t),f_2)})\quad\forall t\in T_{f_1}
-$$
-
-#### Performance over Input Corpus
-
-The performance of a fuzzer $f$ over its input corpus is how much extra coverage it can reach past what is already reached in the input corpus. It is calculated as median of the `relcov` values between each trial $t$ from a set of trials $T_f$ of $f$ against the coverage of the input corpus on the target $c_{\text{input-corpus}}$. This is essentially a special case of $\text{performance-over-fuzzer}(f,f_\text{input})$ where $f_\text{input}$ is a fuzzer that will just pass all elements from the input corpus to the target and then exit. In a formula:
-
-$$
-\text{performance-over-input-corpus}(f)=\text{med}({\text{relcov}(\text{cov}(t),f_\text{input})})\quad\forall t\in T_f
 $$
 
 ### `relscore`
@@ -69,7 +68,6 @@ $$
 
 This can be simplified to the following:
 
-TODO: is it number of trials of other fuzzers or other fuzzers?
 $$
 \text{differential coverage}(f,e) = \text{number of fuzzers that never hit }e
 \times\frac
@@ -82,48 +80,69 @@ $$
 $$
 
 ## Usage
-Assume `<input_dir>` is a directory of directories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
+Assume `<campaign_dir>` is a directory of subdirectories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
 
 PRs for other data formats welcome :)
 
 ### Command Line Interface
-```
-differential_coverage <input_dir>
+
+All commands take the same campaign directory layout: one subdirectory per fuzzer, each with afl-showmap coverage files.
+
+```bash
+differential-coverage --help
 ```
 
-#### Example
-[`tests/sample_coverage`](./tests/sample_coverage/) provides sample coverage data to explain differential coverage. It contains 3 fuzzers and 3 edges:
-- Edge 1 is always hit by all fuzzers
-- Edge 2 is always hit by `fuzzer_c`, sometimes hit by `fuzzer_a`, and never hit by `fuzzer_b`
-- Edge 3 is always hit by `fuzzer_b` and `fuzzer_c`, but only sometimes by `fuzzer_a`
+```
+usage: differential-coverage [-h] [-x FUZZER] command ...
 
+Compute differential coverage relscore and relcov-based measures from afl-showmap coverage. All commands take one campaign directory: one subdir per fuzzer, each with coverage files.
+
+options:
+  -h, --help            show this help message and exit
+  -x, --exclude-fuzzer FUZZER
+                        Exclude a fuzzer (subdirectory name) from the analysis. Can be specified multiple times.
+
+subcommands:
+  command
+    relscore            Compute relscore (SBFT'25) from a campaign directory containing one subdirectory per fuzzer with afl-showmap files.
+    relcov-reliability  Compute relcov-based reliability for each fuzzer.
+    relcov-performance-fuzzer
+                        Compute relcov-based performance of each fuzzer relative to reference fuzzers. By default prints a table (all fuzzers × all fuzzers as reference). Use --single to get scores for one reference only.
+    relcov-performance-corpus
+                        Compute relcov-based performance of each fuzzer relative to input corpora. By default prints a table (all fuzzers × all single-trial corpus fuzzers). Use --single to get scores for one corpus only.
 ```
-differential_coverage tests/sample_coverage
-```
-then produces
-```
-fuzzer_c: 1.00
-fuzzer_a: 0.50
-fuzzer_b: 0.00
-```
+
 ### API
+
+Load a campaign from disk and run the same computations programmatically:
 
 ```python
 from pathlib import Path
 from differential_coverage import (
-    calculate_scores_for_campaign,
-    calculate_differential_coverage_scores,
+    read_campaign,
+    run_relscore,
+    run_relcov_reliability,
+    run_relcov_performance_fuzzer,
+    run_relcov_performance_corpus,
 )
 
-# From a campaign directory (one subdir per fuzzer, each with coverage files):
-scores = read_campaign_and_calculate_score(Path("path/to/campaign_dir"))
-# -> dict[str, float]: fuzzer name -> score
+path = Path("path/to/campaign_dir")
+campaign = read_campaign(path)  # dict[fuzzer_name, dict[trial_id, dict[edge_id, count]]]
 
-# From in-memory campaign data (fuzzer -> trial_id -> edge_id -> count):
-campaign = {...}  # dict[str, dict[str, dict[int, int]]]
-scores = calculate_differential_coverage_scores(campaign)
-# -> dict[str, float]: fuzzer name -> score
+# Relscore (SBFT'25): fuzzer -> score
+scores = run_relscore(campaign)
+
+# Relcov reliability: fuzzer -> value in [0, 1]
+reliability = run_relcov_reliability(campaign)
+
+# Relcov performance vs a reference fuzzer (reference excluded from result)
+perf = run_relcov_performance_fuzzer(campaign, against="fuzzer_c")
+
+# Relcov performance over input corpus (that fuzzer must have exactly one trial)
+perf_corpus = run_relcov_performance_corpus(campaign, input_corpus_fuzzer="seeds")
 ```
+
+All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. They return `dict[str, float]` (fuzzer name → value). `run_relcov_performance_fuzzer` and `run_relcov_performance_corpus` raise `ValueError` if the reference or input-corpus fuzzer is missing or (for corpus) has more than one trial.
 
 ## Installation
 ```bash

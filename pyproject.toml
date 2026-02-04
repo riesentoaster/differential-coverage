@@ -32,4 +32,4 @@ where = ["src"]
 pythonpath = ["src"]
 
 [project.scripts]
-differential_coverage = "differential_coverage:main"
+differential-coverage = "differential_coverage:main"
