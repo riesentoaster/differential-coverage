@@ -9,13 +9,16 @@ There are different ways of measuring differential coverage:
 - Alternatively, `relscore` was proposed in the SBFT’25 Competition Report[^2] by Crump et al. It provides a total ordering of a list of fuzzers.
 
 ### `relcov`
-`relcov` was defined as the following[^1] :
+`relcov` was defined as the following[^1]:
+
 $$
 \text{upper}(f)=\bigcup\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
 $$
+
 $$
 \text{lower}(f)=\bigcap\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
 $$
+
 $$
 \text{relcov}(c,f)=\frac{\left|c\cap\text{upper}(f)\right|}{\left|\text{upper}(f)\right|}
 $$
@@ -73,6 +76,7 @@ $$
 {\text{number of trials of }f\text{ that hit }e}
 {\text{number of trials of }f\text{ with non-empty cov}}
 $$
+
 $$
 \text{score}(f) = \text{sum of differential coverage}(f,e)\text{ over all edges e}
 $$
