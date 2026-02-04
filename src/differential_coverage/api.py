@@ -62,7 +62,7 @@ def run_relcov_performance_fuzzer_all(
         scores = run_relcov_performance_fuzzer(campaign, against)
         for fuzzer, score in scores.items():
             table[fuzzer][against] = score
-        table[against][against] = 1.0
+        table[against][against] = reliability(campaign[against])
     return (ref_fuzzers, table)
 
 

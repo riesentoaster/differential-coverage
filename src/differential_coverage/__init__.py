@@ -69,14 +69,14 @@ def _print_relcov_corpus_table(
             cells = [row]
             for c in corpus_fuzzers:
                 val = table[row].get(c)
-                cells.append(f"{val:.2f}" if val is not None else "")
+                cells.append(f"{val:.5f}" if val is not None else "")
             writer.writerow(cells)
     else:
         col_width = max(
             (len(str(c)) for c in corpus_fuzzers + ["fuzzer"]),
             default=7,
         )
-        num_width = 6  # e.g. " 1.00"
+        num_width = 10  # e.g. " 1.00"
         header = "fuzzer".ljust(col_width)
         for c in corpus_fuzzers:
             header += str(c).rjust(num_width)
@@ -86,7 +86,7 @@ def _print_relcov_corpus_table(
             for c in corpus_fuzzers:
                 val = table[row].get(c)
                 if val is not None:
-                    line += f"{val:>{num_width}.2f}"
+                    line += f"{val:>{num_width}.5f}"
                 else:
                     line += " " * num_width
             print(line)

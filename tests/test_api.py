@@ -14,6 +14,7 @@ from differential_coverage.api import (
     run_relscore,
 )
 from differential_coverage.files import read_campaign_dir
+from differential_coverage.relcov import reliability
 
 SAMPLE_DIR = (Path(__file__).parent / "sample_coverage").resolve()
 
@@ -79,7 +80,7 @@ def test_run_relcov_performance_fuzzer_all() -> None:
     assert ref_fuzzers == ["fuzzer_a", "fuzzer_b", "fuzzer_c"]
     assert set(table.keys()) == {"fuzzer_a", "fuzzer_b", "fuzzer_c"}
     for name in ref_fuzzers:
-        assert table[name][name] == 1.0
+        assert table[name][name] == reliability(campaign[name])
     assert table["fuzzer_a"]["fuzzer_c"] == pytest.approx(2 / 3)
     assert table["fuzzer_b"]["fuzzer_c"] == pytest.approx(2 / 3)
 
