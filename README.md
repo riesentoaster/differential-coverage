@@ -1,10 +1,51 @@
 # Differential Coverage
 
-Absolute coverage numbers aren't painting the whole picture: Different fuzzers may reach the same total coverage, but cover different parts of the program. Fuzzer (A) may reach more coverage than fuzzer (B), but (B) may reach coverage that (A) doesn't reach — so it's still valuable.
+Absolute coverage numbers aren't painting the whole picture: Different fuzzers may reach the same total coverage, but cover different parts of the program. Or, fuzzer (A) may reach more coverage than fuzzer (B), but (B) may reach coverage that (A) doesn't reach — so it's still valuable.
 
 ## Definition
 
-Differential coverage is a measure for this. It was proposed by Leonelli et al. in their paper on TwinFuzz[^1]. This implementation relies on the formulas from the SBFT’25 Competition Report[^2]. There, Crump et al. define a fuzzers overall score compared to others as
+There are different ways of measuring differential coverage:
+- Leonelli et al. introduced `relcov` in their paper on TwinFuzz[^1]. It allows comparing the relative performance of one fuzzer against another and provides values $0\leq x\leq 1$.
+- Alternatively, `relscore` was proposed in the SBFT’25 Competition Report[^2] by Crump et al. It provides a total ordering of a list of fuzzers.
+
+### `relcov`
+`relcov` was defined as the following[^1] :
+$$
+\text{upper}(f)=\bigcup\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
+\text{lower}(f)=\bigcap\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
+\text{relcov}(c,f)=\frac{\left|c\cap\text{upper}(f)\right|}{\left|\text{upper}(f)\right|}
+$$
+
+This can be used in various ways, such as:
+
+#### Reliability of a Fuzzer
+
+The reliability of a fuzzer is its ability to always reach its full potential across a set of trials $T$. It is calculated as the median of the `relcov` values between each trial $t$ and the union of all reached coverage. Or, in a formula:
+
+$$
+\text{reliability}(f)=\overline{\text{relcov}(\text{cov}(t),\text{upper}(f))}\quad\forall t\in T
+$$
+
+
+#### Performance over other fuzzers
+
+The relative performance of a fuzzer $f_1$ relative to another fuzzer $f_2$ (or another configuration of the same fuzzer, or the same fuzzer with the same configuration but a different input corpus, or whatever else you want to test against) is how much extra coverage can be reached by $f_1$ over $f_2$. It is calculated as the median of the `relcov` values between each trial $t$ from a set of trials $T$ of $f_1$ against the union of all coverage reached by $f_2$ across different trials. Or, in a formula:
+
+$$
+\text{performance-over-fuzzer}(f_1, f_2)=\overline{\text{relcov}(\text{cov}(t),\text{upper}(f_2))}\quad\forall t\in T
+$$
+
+#### Performance over Input Corpus
+
+The performance of a fuzzer over its input corpus is how much extra coverage it can reach past what is already reached in the input corpus. It is calculated as median of the `relcov` values between each trial $t$ from a set of trials $T$ against the coverage of the input corpus on the target $c_{\text{input-corpus}}$. This is essentially a special case of $\text{performance-over-fuzzer}(f,f_\text{input})$ where $f_\text{input}$ is a fuzzer that will just pass all elements from the input corpus to the target and then exit. In a formula:
+
+$$
+\text{performance-over-input-corpus}(f)=\overline{\text{relcov}(\text{cov}(t),c_{\text{input-corpus}})}\quad\forall t\in T
+$$
+
+### `relscore`
+
+`relscore` was defined as the following[^2]:
 
 $$
 relscore(f,b,s,e) = \left|f_0\in F|e\notin \text{cov}(b,t,s)\forall t\in \text{trials}(f_0,b)\right|
@@ -19,9 +60,9 @@ $$
 \text{score}(f,b,s)=\sum_{e\in E}\text{relscore}(f,b,s,e)
 $$
 
-## Explanation
 This can be simplified to the following:
 
+TODO: is it number of trials of other fuzzers or other fuzzers?
 $$
 \text{differential coverage}(f,e) = \text{number of fuzzers that never hit }e
 \times\frac
