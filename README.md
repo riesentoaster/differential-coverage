@@ -32,18 +32,6 @@ $$
 \text{score}(f) = \text{sum of differential coverage}(f,e)\text{ over all edges e}
 $$
 
-## Installation
-```bash
-pip install .
-```
-
-## Development
-Install dev dependencies and set up the pre-commit hook (runs a couple of checks before committing):
-```bash
-pip install -e ".[dev]"
-pre-commit install
-```
-
 ## Usage
 ```
 differential_coverage <input_dir>
@@ -70,7 +58,17 @@ fuzzer_a: 0.50
 fuzzer_b: 0.00
 ```
 
----
+## Installation
+```bash
+pip install .
+```
+
+## Development
+Install dev dependencies and set up the pre-commit hook (runs a couple of checks before committing):
+```bash
+pip install -e ".[dev]"
+pre-commit install
+```
 
 [^1]: TWINFUZZ: Differential Testing of Video Hardware Acceleration Stacks, https://www.ndss-symposium.org/ndss-paper/twinfuzz-differential-testing-of-video-hardware-acceleration-stacks/
 
