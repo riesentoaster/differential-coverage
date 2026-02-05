@@ -200,3 +200,27 @@ def test_cli_csv_relcov_performance_fuzzer_table() -> None:
     assert "fuzzer" in lines[0]
     assert "fuzzer_a" in lines[0] or "fuzzer_b" in lines[0]
     assert len(lines) >= 4  # header + data rows
+
+
+def test_cli_latex_relcov_performance_fuzzer_table() -> None:
+    """CLI --output latex with relcov-performance-fuzzer (table) outputs LaTeX tabular."""
+    code, out, _ = _run_cli(
+        ["--output", "latex", "relcov-performance-fuzzer", str(SAMPLE_DIR)]
+    )
+    assert code == 0
+    lines = out.strip().splitlines()
+    assert lines[0].startswith(r"\begin{tabular}")
+    assert any("fuzzer" in line for line in lines)
+    assert lines[-1] == r"\end{tabular}"
+
+
+def test_cli_latex_color_relcov_performance_fuzzer_table() -> None:
+    """CLI --output latex-color with relcov-performance-fuzzer (table) outputs colored LaTeX tabular."""
+    code, out, _ = _run_cli(
+        ["--output", "latex-color", "relcov-performance-fuzzer", str(SAMPLE_DIR)]
+    )
+    assert code == 0
+    lines = out.strip().splitlines()
+    assert lines[0].startswith(r"\begin{tabular}")
+    assert any(r"\cellcolor" in line for line in lines)
+    assert lines[-1] == r"\end{tabular}"

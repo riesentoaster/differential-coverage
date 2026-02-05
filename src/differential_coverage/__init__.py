@@ -9,8 +9,6 @@ API functions live in differential_coverage.api (and are re-exported here).
 """
 
 import argparse
-import csv
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Sequence
@@ -25,6 +23,7 @@ from differential_coverage.api import (
 )
 
 from differential_coverage.files import read_campaign_dir
+from differential_coverage.output import print_relcov_corpus_table, print_scores
 from differential_coverage.types import CampaignMap, FuzzerIdentifier
 
 # All subcommands expect this directory layout (one campaign dir, no moving files).
@@ -32,64 +31,6 @@ CAMPAIGN_DIR_HELP = (
     "Campaign directory: one subdirectory per fuzzer, each containing "
     "afl-showmap coverage files (id:count per line)."
 )
-
-
-def print_scores(
-    scores: dict[FuzzerIdentifier, float],
-    *,
-    as_csv: bool = False,
-) -> None:
-    name_sorted = sorted(scores.items(), key=lambda x: x[0])
-    performance_sorted = sorted(name_sorted, key=lambda x: x[1], reverse=True)
-    if as_csv:
-        writer = csv.writer(sys.stdout)
-        writer.writerow(("fuzzer", "score"))
-        for fuzzer, score in performance_sorted:
-            writer.writerow((fuzzer, f"{score:.2f}"))
-    else:
-        for fuzzer, score in performance_sorted:
-            print(f"{fuzzer}: {score:.2f}")
-
-
-def _print_relcov_corpus_table(
-    corpus_fuzzers: list[FuzzerIdentifier],
-    table: dict[FuzzerIdentifier, dict[FuzzerIdentifier, float]],
-    *,
-    as_csv: bool = False,
-) -> None:
-    """Print a table of relcov performance: rows = fuzzers, columns = corpus fuzzers."""
-    if not corpus_fuzzers:
-        print("No corpus fuzzers (single-trial subdirs) found.")
-        return
-    row_labels = sorted(table.keys())
-    if as_csv:
-        writer = csv.writer(sys.stdout)
-        writer.writerow(["fuzzer"] + list(corpus_fuzzers))
-        for row in row_labels:
-            cells = [row]
-            for c in corpus_fuzzers:
-                val = table[row].get(c)
-                cells.append(f"{val:.5f}" if val is not None else "")
-            writer.writerow(cells)
-    else:
-        col_width = max(
-            (len(str(c)) for c in corpus_fuzzers + ["fuzzer"]),
-            default=7,
-        )
-        num_width = 10  # e.g. " 1.00"
-        header = "fuzzer".ljust(col_width)
-        for c in corpus_fuzzers:
-            header += str(c).rjust(num_width)
-        print(header)
-        for row in row_labels:
-            line = str(row).ljust(col_width)
-            for c in corpus_fuzzers:
-                val = table[row].get(c)
-                if val is not None:
-                    line += f"{val:>{num_width}.5f}"
-                else:
-                    line += " " * num_width
-            print(line)
 
 
 def _load_campaign(args: argparse.Namespace) -> CampaignMap:
@@ -118,7 +59,11 @@ def _load_campaign(args: argparse.Namespace) -> CampaignMap:
 def cmd_relscore(args: argparse.Namespace) -> int:
     campaign = _load_campaign(args)
     scores = run_relscore(campaign)
-    print_scores(scores, as_csv=getattr(args, "output", None) == "csv")
+    print_scores(
+        scores,
+        output=getattr(args, "output", None),
+        colormap=getattr(args, "colormap", "viridis"),
+    )
     return 0
 
 
@@ -128,7 +73,11 @@ def cmd_relcov_reliability(args: argparse.Namespace) -> int:
         results = run_relcov_reliability(campaign)
     except ValueError as e:
         raise SystemExit(e) from e
-    print_scores(results, as_csv=getattr(args, "output", None) == "csv")
+    print_scores(
+        results,
+        output=getattr(args, "output", None),
+        colormap=getattr(args, "colormap", "viridis"),
+    )
     return 0
 
 
@@ -139,7 +88,8 @@ def cmd_relcov_performance_over_fuzzer(args: argparse.Namespace) -> int:
         raise SystemExit(e) from e
 
     single: FuzzerIdentifier | None = getattr(args, "single", None)
-    as_csv = getattr(args, "output", None) == "csv"
+    output = getattr(args, "output", None)
+    colormap = getattr(args, "colormap", "viridis")
     if single is not None:
         if single not in campaign:
             raise SystemExit(
@@ -147,11 +97,11 @@ def cmd_relcov_performance_over_fuzzer(args: argparse.Namespace) -> int:
                 "(it may have been excluded)."
             )
         results = run_relcov_performance_fuzzer(campaign, single)
-        print_scores(results, as_csv=as_csv)
+        print_scores(results, output=output, colormap=colormap)
         return 0
 
     ref_fuzzers, table = run_relcov_performance_fuzzer_all(campaign)
-    _print_relcov_corpus_table(ref_fuzzers, table, as_csv=as_csv)
+    print_relcov_corpus_table(ref_fuzzers, table, output=output, colormap=colormap)
     return 0
 
 
@@ -162,7 +112,8 @@ def cmd_relcov_performance_over_input_corpus(args: argparse.Namespace) -> int:
         raise SystemExit(e) from e
 
     single: FuzzerIdentifier | None = getattr(args, "single", None)
-    as_csv = getattr(args, "output", None) == "csv"
+    output = getattr(args, "output", None)
+    colormap = getattr(args, "colormap", "viridis")
     if single is not None:
         if single not in campaign:
             raise SystemExit(
@@ -173,11 +124,11 @@ def cmd_relcov_performance_over_input_corpus(args: argparse.Namespace) -> int:
             results = run_relcov_performance_corpus(campaign, single)
         except ValueError as e:
             raise SystemExit(e) from e
-        print_scores(results, as_csv=as_csv)
+        print_scores(results, output=output, colormap=colormap)
         return 0
 
     corpus_fuzzers, table = run_relcov_performance_corpus_all(campaign)
-    _print_relcov_corpus_table(corpus_fuzzers, table, as_csv=as_csv)
+    print_relcov_corpus_table(corpus_fuzzers, table, output=output, colormap=colormap)
     return 0
 
 
@@ -205,10 +156,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         "-o",
-        choices=["csv"],
+        choices=["csv", "latex", "latex-color"],
         metavar="FORMAT",
         default=None,
-        help="Output format: csv for CSV (default: print to stdout).",
+        help=(
+            "Output format: csv for CSV, latex for LaTeX tabular, "
+            "latex-color for LaTeX tabular with cell colors scaled "
+            "between global min and max "
+            "(default: human-readable text to stdout)."
+        ),
+    )
+    parser.add_argument(
+        "--colormap",
+        "-c",
+        metavar="NAME",
+        default="viridis",
+        help=(
+            "Matplotlib colormap name for latex-color output (e.g. viridis, "
+            "plasma, magma, inferno). Default: viridis."
+        ),
     )
 
     subparsers = parser.add_subparsers(
@@ -284,7 +250,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    func: Callable[[argparse.Namespace], int] = args.func
+    func: Callable[[argparse.Namespace], int] | None = getattr(args, "func", None)
+    if func is None:
+        # No subcommand was provided; show help and return a non-zero exit code
+        parser.print_help()
+        return 1
     return func(args)
 
 
