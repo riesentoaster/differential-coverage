@@ -237,6 +237,7 @@ def _colormap_light_hex(t: float, *, colormap: str = "viridis") -> str:
     colormap is any matplotlib colormap name (e.g. 'viridis', 'plasma', 'magma').
     """
     t = max(0.0, min(1.0, t))
+    t = 1 - t  # invert the color map
     if colormap not in colormaps:
         raise ValueError(f"Invalid colormap: {colormap}")
     cmap = colormaps[colormap]
