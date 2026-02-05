@@ -156,6 +156,28 @@ def _print_relcov_corpus_table_csv(
         writer.writerow(cells)
 
 
+def _latex_print_rotcol_command() -> None:
+    """Emit the \\rotcol LaTeX command definition.
+    Requires \\usepackage{graphicx} and \\usepackage{calc}.
+    Rotated text is raised so it stays in the header row; row height is \\widthof{#1}.
+    """
+    # Raise rotated text by half its width so it doesn't extend below the baseline
+    # into the first data row; then reserve full width as row height.
+    print(
+        r"""\newcolumntype{R}[2]{%
+    >{\adjustbox{angle=#1,lap=\width-(#2)}\bgroup}%
+    l%
+    <{\egroup}%
+}
+\newcommand*\rotcol{\multicolumn{1}{R{45}{1em}}}%"""
+    )
+
+
+def _latex_rotcol(text: str) -> str:
+    """Format text as a rotated column header using the \\rotcol command."""
+    return r"\rotcol{" + text + r"}"
+
+
 def _print_relcov_corpus_table_latex(
     corpus_fuzzers: Sequence[FuzzerIdentifier],
     table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
@@ -164,8 +186,9 @@ def _print_relcov_corpus_table_latex(
     num_cols = 1 + len(corpus_fuzzers)
     # Use a simple alignment: first column left, others right.
     align_spec = "l" + "r" * (num_cols - 1)
+    _latex_print_rotcol_command()
     print(r"\begin{tabular}{" + align_spec + r"}")
-    header_cells = ["fuzzer"] + [str(c) for c in corpus_fuzzers]
+    header_cells = [""] + [_latex_rotcol(str(c)) for c in corpus_fuzzers]
     print(" & ".join(header_cells) + r" \\")
     print(r"\hline")
     for row in row_labels:
@@ -212,8 +235,9 @@ def _print_relcov_corpus_table_latex_color(
 
     num_cols = 1 + len(corpus_fuzzers)
     align_spec = "l" + "r" * (num_cols - 1)
+    _latex_print_rotcol_command()
     print(r"\begin{tabular}{" + align_spec + r"}")
-    header_cells = ["fuzzer"] + [str(c) for c in corpus_fuzzers]
+    header_cells = [""] + [_latex_rotcol(str(c)) for c in corpus_fuzzers]
     print(" & ".join(header_cells) + r" \\")
     print(r"\hline")
     for row in row_labels:

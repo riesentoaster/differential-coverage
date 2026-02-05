@@ -119,8 +119,8 @@ def test_cli_relcov_performance_corpus_table() -> None:
     assert code == 0
     lines = [s.strip() for s in out.strip().splitlines()]
     # Header: fuzzer + corpus column(s); only seeds has one trial
-    assert "seeds" in lines[0]
-    assert "fuzzer" in lines[0].lower()
+    assert "seeds" in lines[0], lines
+    assert "fuzzer" in lines[0].lower(), lines
     # Rows: fuzzer_a, fuzzer_b, fuzzer_c, seeds
     assert any("fuzzer_a" in line for line in lines)
     assert any("fuzzer_b" in line for line in lines)
@@ -209,7 +209,7 @@ def test_cli_latex_relcov_performance_fuzzer_table() -> None:
     )
     assert code == 0
     lines = out.strip().splitlines()
-    assert lines[0].startswith(r"\begin{tabular}")
+    assert any(line.startswith(r"\begin{tabular}") for line in lines)
     assert any("fuzzer" in line for line in lines)
     assert lines[-1] == r"\end{tabular}"
 
@@ -221,6 +221,6 @@ def test_cli_latex_color_relcov_performance_fuzzer_table() -> None:
     )
     assert code == 0
     lines = out.strip().splitlines()
-    assert lines[0].startswith(r"\begin{tabular}")
+    assert any(line.startswith(r"\begin{tabular}") for line in lines)
     assert any(r"\cellcolor" in line for line in lines)
     assert lines[-1] == r"\end{tabular}"
