@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "differential_coverage"
-version = "0.2.5"
+version = "0.3.0"
 description = "Compute differential coverage for fuzzer runs."
 readme = "README.md"
 license = "MIT"
@@ -16,10 +16,17 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Topic :: Software Development :: Testing",
 ]
-dependencies = ["matplotlib>=3.5"]
+dependencies = []
 
 [project.optional-dependencies]
-dev = ["mypy>=1.19.1", "pre-commit>=4.3.0", "pytest>=9.0.2", "ruff>=0.15.0"]
+latex = ["matplotlib>=3.5", "pylatex>=1.4.2"]
+dev = [
+  "differential-coverage[latex]",
+  "mypy>=1.19.1",
+  "pre-commit>=4.3.0",
+  "pytest>=9.0.2",
+  "ruff>=0.15.0",
+]
 
 [project.urls]
 Repository = "https://github.com/valentinhuber/differential_coverage"

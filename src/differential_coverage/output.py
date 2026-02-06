@@ -7,12 +7,10 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import Literal
 
-import matplotlib.colors as mcolors
-from matplotlib import colormaps
 
 from differential_coverage.types import FuzzerIdentifier
 
-OutputFormat = Literal["csv", "latex", "latex-color"]
+OutputFormat = Literal["csv", "latex"]
 
 
 def print_scores(
@@ -20,6 +18,7 @@ def print_scores(
     *,
     output: OutputFormat | None = None,
     colormap: str = "viridis",
+    latex_enable_color: bool = False,
 ) -> None:
     """Print one score per fuzzer, in the requested output format."""
     name_sorted = sorted(scores.items(), key=lambda x: x[0])
@@ -28,9 +27,11 @@ def print_scores(
     if output == "csv":
         _print_scores_csv(performance_sorted)
     elif output == "latex":
-        _print_scores_latex(performance_sorted)
-    elif output == "latex-color":
-        _print_scores_latex_color(performance_sorted, colormap=colormap)
+        _print_scores_latex(
+            performance_sorted,
+            enable_color=latex_enable_color,
+            colormap=colormap,
+        )
     else:
         _print_scores_plain(performance_sorted)
 
@@ -51,46 +52,44 @@ def _print_scores_csv(
         writer.writerow((fuzzer, f"{score:.2f}"))
 
 
+def _norm_minmax(values: Sequence[float]) -> tuple[float, float]:
+    """Return (min, max); if empty or single value, return (0, 0) for safe norm."""
+    if not values:
+        return (0.0, 0.0)
+    return (min(values), max(values))
+
+
+def _norm_value(v: float, min_v: float, max_v: float) -> float:
+    """Map v in [min_v, max_v] to [0, 1]; if min_v == max_v return 0.5."""
+    if max_v <= min_v:
+        return 0.5
+    return (v - min_v) / (max_v - min_v)
+
+
 def _print_scores_latex(
     performance_sorted: Sequence[tuple[FuzzerIdentifier, float]],
-) -> None:
-    # Simple LaTeX table without requiring additional packages.
-    print(r"\begin{tabular}{lr}")
-    print(r"fuzzer & score \\")
-    print(r"\hline")
-    for fuzzer, score in performance_sorted:
-        print(f"{fuzzer} & {score:.2f} \\\\")
-    print(r"\end{tabular}")
-
-
-def _print_scores_latex_color(
-    performance_sorted: Sequence[tuple[FuzzerIdentifier, float]],
     *,
+    enable_color: bool = False,
     colormap: str = "viridis",
 ) -> None:
-    """LaTeX table where score cells are colored by value."""
-    if not performance_sorted:
-        print(r"\begin{tabular}{lr}")
-        print(r"fuzzer & score \\")
-        print(r"\end{tabular}")
-        return
-
-    values = [score for _, score in performance_sorted]
-    min_v = min(values)
-    max_v = max(values)
-
-    def _norm(v: float) -> float:
-        if max_v <= min_v:
-            return 0.5
-        return (v - min_v) / (max_v - min_v)
-
+    """LaTeX table (optionally with score cells colored by value)."""
     print(r"\begin{tabular}{lr}")
     print(r"fuzzer & score \\")
+    if not performance_sorted:
+        print(r"\end{tabular}")
+        return
     print(r"\hline")
+    min_v, max_v = (0.0, 0.0)
+    if enable_color:
+        values = [s for _, s in performance_sorted]
+        min_v, max_v = _norm_minmax(values)
     for fuzzer, score in performance_sorted:
-        n = _norm(score)
-        hex_color = _colormap_light_hex(n, colormap=colormap)
-        print(rf"{fuzzer} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
+        if enable_color:
+            n = _norm_value(score, min_v, max_v)
+            hex_color = _colormap_light_hex(n, colormap=colormap)
+            print(rf"{fuzzer} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
+        else:
+            print(f"{fuzzer} & {score:.2f} \\\\")
     print(r"\end{tabular}")
 
 
@@ -100,6 +99,8 @@ def print_relcov_corpus_table(
     *,
     output: OutputFormat | None = None,
     colormap: str = "viridis",
+    latex_rotate_headers: float | None = None,
+    latex_enable_color: bool = False,
 ) -> None:
     """Print a table of relcov performance: rows = fuzzers, columns = corpus fuzzers."""
     if not corpus_fuzzers:
@@ -109,9 +110,13 @@ def print_relcov_corpus_table(
     if output == "csv":
         _print_relcov_corpus_table_csv(corpus_fuzzers, table)
     elif output == "latex":
-        _print_relcov_corpus_table_latex(corpus_fuzzers, table)
-    elif output == "latex-color":
-        _print_relcov_corpus_table_latex_color(corpus_fuzzers, table, colormap=colormap)
+        _print_relcov_corpus_table_latex(
+            corpus_fuzzers,
+            table,
+            rotate_headers=latex_rotate_headers,
+            enable_color=latex_enable_color,
+            colormap=colormap,
+        )
     else:
         _print_relcov_corpus_table_plain(corpus_fuzzers, table)
 
@@ -156,11 +161,14 @@ def _print_relcov_corpus_table_csv(
         writer.writerow(cells)
 
 
-def _latex_print_rotcol_command() -> None:
+def _latex_print_rotcol_command(*, angle: float | None) -> None:
     """Emit the \\rotcol LaTeX command definition.
     Requires \\usepackage{graphicx} and \\usepackage{calc}.
     Rotated text is raised so it stays in the header row; row height is \\widthof{#1}.
     """
+    if angle is None:
+        return
+
     # Raise rotated text by half its width so it doesn't extend below the baseline
     # into the first data row; then reserve full width as row height.
     print(
@@ -169,35 +177,16 @@ def _latex_print_rotcol_command() -> None:
     l%
     <{\egroup}%
 }
-\newcommand*\rotcol{\multicolumn{1}{R{60}{1em}}}%"""
+"""
+        + rf"\newcommand*\rotcol{{\multicolumn{{1}}{{R{{{angle:.0f}}}{{1em}}}}}}%"
     )
 
 
-def _latex_rotcol(text: str) -> str:
-    """Format text as a rotated column header using the \\rotcol command."""
+def _latex_rotcol(text: str, *, angle: float | None) -> str:
+    """Format text as a (possibly rotated) column header using the \\rotcol command."""
+    if angle is None:
+        return text
     return r"\rotcol{" + text + r"}"
-
-
-def _print_relcov_corpus_table_latex(
-    corpus_fuzzers: Sequence[FuzzerIdentifier],
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
-) -> None:
-    row_labels = sorted(table.keys())
-    num_cols = 1 + len(corpus_fuzzers)
-    # Use a simple alignment: first column left, others right.
-    align_spec = "l" + "r" * (num_cols - 1)
-    _latex_print_rotcol_command()
-    print(r"\begin{tabular}{" + align_spec + r"}")
-    header_cells = [""] + [_latex_rotcol(str(c)) for c in corpus_fuzzers]
-    print(" & ".join(header_cells) + r" \\")
-    print(r"\hline")
-    for row in row_labels:
-        cells: list[str] = [str(row)]
-        for c in corpus_fuzzers:
-            val = table[row].get(c)
-            cells.append(f"{val:.3f}" if val is not None else "")
-        print(" & ".join(cells) + r" \\")
-    print(r"\end{tabular}")
 
 
 def _collect_numeric_values(
@@ -211,45 +200,48 @@ def _collect_numeric_values(
     return values
 
 
-def _print_relcov_corpus_table_latex_color(
+def _print_relcov_corpus_table_latex(
     corpus_fuzzers: Sequence[FuzzerIdentifier],
     table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
     *,
+    rotate_headers: float | None,
+    enable_color: bool = False,
     colormap: str = "viridis",
 ) -> None:
-    """LaTeX table where data cells are colored by global min/max."""
-    row_labels = sorted(table.keys())
-    all_values = _collect_numeric_values(table)
-    if all_values:
-        min_v = min(all_values)
-        max_v = max(all_values)
-    else:
-        min_v = max_v = 0.0
+    try:
+        from pylatex.utils import escape_latex  # type: ignore[import-untyped] # does not provide types
+    except ImportError:
+        raise ImportError('latex support requires the "latex" optional dependencies')
 
-    def _norm(v: float | None) -> float:
-        if v is None:
-            return 0.0
-        if max_v <= min_v:
-            return 0.5
-        return (v - min_v) / (max_v - min_v)
+    """LaTeX table (optionally with data cells colored by global min/max)."""
+    row_labels = sorted(table.keys())
+    min_v, max_v = (0.0, 0.0)
+    if enable_color:
+        all_values = _collect_numeric_values(table)
+        min_v, max_v = _norm_minmax(all_values)
 
     num_cols = 1 + len(corpus_fuzzers)
     align_spec = "l" + "r" * (num_cols - 1)
-    _latex_print_rotcol_command()
+    _latex_print_rotcol_command(angle=rotate_headers)
     print(r"\begin{tabular}{" + align_spec + r"}")
-    header_cells = [""] + [_latex_rotcol(str(c)) for c in corpus_fuzzers]
+    header_cells = [""] + [
+        _latex_rotcol(escape_latex(str(c)), angle=rotate_headers)
+        for c in corpus_fuzzers
+    ]
     print(" & ".join(header_cells) + r" \\")
     print(r"\hline")
     for row in row_labels:
-        cells: list[str] = [str(row)]
+        cells: list[str] = [escape_latex(str(row))]
         for c in corpus_fuzzers:
             val = table[row].get(c)
             if val is None:
                 cells.append("")
-            else:
-                n = _norm(val)
+            elif enable_color:
+                n = _norm_value(val, min_v, max_v)
                 hex_color = _colormap_light_hex(n, colormap=colormap)
                 cells.append(rf"\cellcolor[HTML]{{{hex_color}}}{{{val:.3f}}}")
+            else:
+                cells.append(f"{val:.3f}")
         print(" & ".join(cells) + r" \\")
     print(r"\end{tabular}")
 
@@ -260,11 +252,17 @@ def _colormap_light_hex(t: float, *, colormap: str = "viridis") -> str:
     matplotlib colormap so backgrounds stay light enough for black text.
     colormap is any matplotlib colormap name (e.g. 'viridis', 'plasma', 'magma').
     """
+    try:
+        import matplotlib.colors as mcolors
+        from matplotlib import colormaps
+    except ImportError:
+        raise ImportError('latex support requires the "latex" optional dependencies')
+
     t = max(0.0, min(1.0, t))
     if colormap not in colormaps:
         raise ValueError(f"Invalid colormap: {colormap}")
     cmap = colormaps[colormap]
-    (r, g, b, _a) = cmap(t)
+    [r, g, b, a] = cmap(t)
     [r, g, b] = [1 - ((1 - e) * 0.3) for e in [r, g, b]]
 
     return mcolors.to_hex((r, g, b), keep_alpha=False)[1:].upper()

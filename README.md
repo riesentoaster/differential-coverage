@@ -96,24 +96,44 @@ differential-coverage --help
 ```
 
 ```
-usage: differential-coverage [-h] [-x FUZZER] [--output FORMAT] command ...
+usage: differential-coverage [-h] [-i PATTERN] [-x PATTERN] [--output FORMAT]
+                             [--latex-rotate-headers DEGREES] [--latex-enable-color]
+                             [--latex-colormap NAME]
+                             command ...
 
-Compute differential coverage relscore and relcov-based measures from afl-showmap coverage. All commands take one campaign directory: one subdir per fuzzer, each with coverage files.
+Compute differential coverage relscore and relcov-based measures from afl-showmap
+coverage. All commands take one campaign directory: one subdir per fuzzer, each with
+coverage files.
 
 options:
   -h, --help            show this help message and exit
-  -x, --exclude-fuzzer FUZZER
-                        Exclude a fuzzer (subdirectory name) from the analysis. Can be specified multiple times.
-  --output, -o FORMAT   Output format: csv for CSV (default: print to stdout).
+  -i, --include-fuzzer PATTERN
+                        Include only fuzzers whose name matches this regex (whitelist).
+                        Can be specified multiple times; a fuzzer is kept if it matches
+                        any pattern.
+  -x, --exclude-fuzzer PATTERN
+                        Exclude fuzzers whose name matches this regex. Can be specified
+                        multiple times; apply after --include-fuzzer.
+  --output, -o FORMAT   Output format: csv for CSV, latex for LaTeX tabular (requires
+                        "latex" optional dependencies)
+  --latex-rotate-headers DEGREES
+                        Rotate LaTeX table column headers by this angle in degrees (e.g.
+                        45). Requires \usepackage[table]{xcolor} and
+                        \usepackage{adjustbox}.
+  --latex-enable-color  Enable background colors for LaTeX tables and score outputs when
+                        using --output latex. Requires \usepackage[table]{xcolor}.
+  --latex-colormap NAME
+                        Matplotlib colormap name to use for colored LaTeX output (e.g.
+                        viridis, plasma, magma, inferno). Default: viridis.
 
 subcommands:
   command
-    relscore            Compute relscore (SBFT'25) from a campaign directory containing one subdirectory per fuzzer with afl-showmap files.
-    relcov-reliability  Compute relcov-based reliability for each fuzzer.
-    relcov-performance-fuzzer
-                        Compute relcov-based performance of each fuzzer relative to reference fuzzers. By default prints a table (all fuzzers × all fuzzers as reference). Use --single to get scores for one reference only.
-    relcov-performance-corpus
-                        Compute relcov-based performance of each fuzzer relative to input corpora. By default prints a table (all fuzzers × all single-trial corpus fuzzers). Use --single to get scores for one corpus only.
+    relscore            Compute relscore (SBFT'25) from a campaign directory containing
+                        one subdirectory per fuzzer with afl-showmap files.
+    relcov              Compute relcov-based performance of each fuzzer relative to
+                        reference fuzzers. By default prints a table (all fuzzers × all
+                        fuzzers as reference). Use --single to get scores for one
+                        reference only.
 ```
 
 ### API
@@ -125,11 +145,8 @@ from pathlib import Path
 from differential_coverage.api import (
     read_campaign,
     run_relscore,
-    run_relcov_reliability,
     run_relcov_performance_fuzzer,
     run_relcov_performance_fuzzer_all,
-    run_relcov_performance_corpus,
-    run_relcov_performance_corpus_all,
 )
 
 path = Path("path/to/campaign_dir")
@@ -138,27 +155,19 @@ campaign = read_campaign(path)  # dict[fuzzer_name, dict[trial_id, dict[edge_id,
 # Relscore (SBFT'25): fuzzer -> score
 scores = run_relscore(campaign)
 
-# Relcov reliability: fuzzer -> value in [0, 1]
-reliability = run_relcov_reliability(campaign)
-
 # Relcov performance vs a reference fuzzer (reference excluded from result)
 perf = run_relcov_performance_fuzzer(campaign, against="fuzzer_c")
 
 # Relcov performance vs every fuzzer as reference: (ref_fuzzers, table[row][col])
 ref_fuzzers, table = run_relcov_performance_fuzzer_all(campaign)
-
-# Relcov performance over input corpus (corpus fuzzer must have exactly one trial)
-perf_corpus = run_relcov_performance_corpus(campaign, input_corpus_fuzzer="seeds")
-
-# Relcov performance over every single-trial corpus: (corpus_fuzzers, table[row][col])
-corpus_fuzzers, corpus_table = run_relcov_performance_corpus_all(campaign)
 ```
 
-All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. The single-reference functions return `dict[str, float]` (fuzzer name → value). The `*_all` functions return `(list_of_refs, table)` where `table[row_fuzzer][ref_fuzzer]` is the score (1.0 on the diagonal). `run_relcov_performance_fuzzer` and `run_relcov_performance_corpus` raise `ValueError` if the reference or input-corpus fuzzer is missing or (for corpus) has more than one trial.
+All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. The single-reference function returns `dict[str, float]` (fuzzer name → value). The `*_all` function returns `(list_of_refs, table)` where `table[row_fuzzer][ref_fuzzer]` is the score (1.0 on the diagonal). `run_relcov_performance_fuzzer` raises `ValueError` if the reference fuzzer is missing.
 
 ## Installation
 ```bash
 pip install .
+pip install ".[latex]" # if you need latex output support
 ```
 
 ## Development

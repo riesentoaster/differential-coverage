@@ -6,11 +6,8 @@ import pytest
 
 from differential_coverage.api import (
     read_campaign,
-    run_relcov_performance_corpus,
-    run_relcov_performance_corpus_all,
     run_relcov_performance_fuzzer,
     run_relcov_performance_fuzzer_all,
-    run_relcov_reliability,
     run_relscore,
 )
 from differential_coverage.files import read_campaign_dir
@@ -40,17 +37,6 @@ def test_run_relscore() -> None:
     }
 
 
-def test_run_relcov_reliability() -> None:
-    """relcov reliability on sample (no seeds) returns expected values."""
-    campaign = read_campaign_dir(SAMPLE_DIR)
-    del campaign["seeds"]
-    results = run_relcov_reliability(campaign)
-    assert results.keys() == {"fuzzer_a", "fuzzer_b", "fuzzer_c"}
-    assert results["fuzzer_a"] == pytest.approx(2 / 3)
-    assert results["fuzzer_b"] == 1.0
-    assert results["fuzzer_c"] == 1.0
-
-
 def test_run_relcov_performance_fuzzer() -> None:
     """relcov performance vs reference fuzzer on sample (no seeds)."""
     campaign = read_campaign_dir(SAMPLE_DIR)
@@ -59,17 +45,6 @@ def test_run_relcov_performance_fuzzer() -> None:
     assert set(results.keys()) == {"fuzzer_a", "fuzzer_b"}
     assert results["fuzzer_a"] == pytest.approx(2 / 3)
     assert results["fuzzer_b"] == pytest.approx(2 / 3)
-
-
-def test_run_relcov_performance_corpus() -> None:
-    """relcov performance over input corpus (seeds) on full sample."""
-    campaign = read_campaign_dir(SAMPLE_DIR)
-    scores = run_relcov_performance_corpus(campaign, input_corpus_fuzzer="seeds")
-    assert scores == {
-        "fuzzer_a": pytest.approx(1.0 / 3),
-        "fuzzer_b": pytest.approx(1.0 / 2),
-        "fuzzer_c": pytest.approx(1.0 / 3),
-    }
 
 
 def test_run_relcov_performance_fuzzer_all() -> None:
@@ -91,30 +66,3 @@ def test_run_relcov_performance_fuzzer_missing_reference() -> None:
     del campaign["seeds"]
     with pytest.raises(ValueError, match="not found in campaign"):
         run_relcov_performance_fuzzer(campaign, "nonexistent")
-
-
-def test_run_relcov_performance_corpus_missing_fuzzer() -> None:
-    """run_relcov_performance_corpus raises if input corpus fuzzer not in campaign."""
-    campaign = read_campaign_dir(SAMPLE_DIR)
-    with pytest.raises(ValueError, match="not found in campaign"):
-        run_relcov_performance_corpus(campaign, input_corpus_fuzzer="nonexistent")
-
-
-def test_run_relcov_performance_corpus_not_single_trial() -> None:
-    """run_relcov_performance_corpus requires exactly one trial for input corpus."""
-    campaign = read_campaign_dir(SAMPLE_DIR)
-    # fuzzer_a has two trials (t1, t2)
-    with pytest.raises(ValueError, match="exactly one trial"):
-        run_relcov_performance_corpus(campaign, input_corpus_fuzzer="fuzzer_a")
-
-
-def test_run_relcov_performance_corpus_all() -> None:
-    """run_relcov_performance_corpus_all returns table with one corpus (seeds)."""
-    campaign = read_campaign_dir(SAMPLE_DIR)
-    corpus_fuzzers, table = run_relcov_performance_corpus_all(campaign)
-    assert corpus_fuzzers == ["seeds"]
-    assert set(table.keys()) == {"fuzzer_a", "fuzzer_b", "fuzzer_c", "seeds"}
-    assert table["seeds"]["seeds"] == 1.0
-    assert table["fuzzer_a"]["seeds"] == pytest.approx(1.0 / 3)
-    assert table["fuzzer_b"]["seeds"] == pytest.approx(1.0 / 2)
-    assert table["fuzzer_c"]["seeds"] == pytest.approx(1.0 / 3)
