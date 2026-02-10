@@ -7,38 +7,38 @@ import pytest
 
 
 def test_constructor() -> None:
-    fuzzer_data = ApproachData(SAMPLE_CAMPAIGN_CONTENT)
-    assert isinstance(fuzzer_data, ApproachData)
+    approach_data = ApproachData(SAMPLE_CAMPAIGN_CONTENT)
+    assert isinstance(approach_data, ApproachData)
     with pytest.raises(ValueError):
-        fuzzer_data = ApproachData({})
+        approach_data = ApproachData({})
 
 
 def test_edges_union() -> None:
     # single trial
-    fuzzer_data = ApproachData({"t1": {1, 2}})
-    assert fuzzer_data.edges_union == {1, 2}
+    approach_data = ApproachData({"t1": {1, 2}})
+    assert approach_data.edges_union == {1, 2}
 
     # multiple trials, no overlap
-    fuzzer_data = ApproachData({"t1": {1, 2}, "t2": {3, 4}})
-    assert fuzzer_data.edges_union == {1, 2, 3, 4}
+    approach_data = ApproachData({"t1": {1, 2}, "t2": {3, 4}})
+    assert approach_data.edges_union == {1, 2, 3, 4}
 
     # multiple trials, some overlap
-    fuzzer_data = ApproachData({"t1": {1, 2}, "t2": {2, 3}})
-    assert fuzzer_data.edges_union == {1, 2, 3}
+    approach_data = ApproachData({"t1": {1, 2}, "t2": {2, 3}})
+    assert approach_data.edges_union == {1, 2, 3}
 
 
 def test_edges_intersection() -> None:
     # single trial
-    fuzzer_data = ApproachData({"t1": {1, 2}})
-    assert fuzzer_data.edges_intersection == {1, 2}
+    approach_data = ApproachData({"t1": {1, 2}})
+    assert approach_data.edges_intersection == {1, 2}
 
     # multiple trials, no overlap
-    fuzzer_data = ApproachData({"t1": {1, 2}, "t2": {3, 4}})
-    assert fuzzer_data.edges_intersection == set()
+    approach_data = ApproachData({"t1": {1, 2}, "t2": {3, 4}})
+    assert approach_data.edges_intersection == set()
 
     # multiple trials, some overlap
-    fuzzer_data = ApproachData({"t1": {1, 2}, "t2": {2, 3}})
-    assert fuzzer_data.edges_intersection == {2}
+    approach_data = ApproachData({"t1": {1, 2}, "t2": {2, 3}})
+    assert approach_data.edges_intersection == {2}
 
 
 @pytest.mark.parametrize(
@@ -46,23 +46,23 @@ def test_edges_intersection() -> None:
     [{"t1": {1, 2}}, {"t1": {1, 2}, "t2": {3, 4}}, {"t1": {1, 2}, "t2": {2, 3}}],
 )
 def test_edges_by_trial(trials: dict[str, set[int]]) -> None:
-    fuzzer_data = ApproachData(deepcopy(trials))
-    assert fuzzer_data.edges_by_trial == trials
+    approach_data = ApproachData(deepcopy(trials))
+    assert approach_data.edges_by_trial == trials
 
 
 def test_eq() -> None:
-    fuzzer_data = ApproachData({"t1": {1, 2}})
-    assert fuzzer_data == fuzzer_data  # eq to self
-    assert fuzzer_data == deepcopy(fuzzer_data)  # eq to deepcopy
-    assert fuzzer_data == ApproachData({"t1": {1, 2}})  # eq to same data
-    assert fuzzer_data != ApproachData({"t1": {1, 2, 3}})  # different data
-    assert fuzzer_data != ApproachData(
+    approach_data = ApproachData({"t1": {1, 2}})
+    assert approach_data == approach_data  # eq to self
+    assert approach_data == deepcopy(approach_data)  # eq to deepcopy
+    assert approach_data == ApproachData({"t1": {1, 2}})  # eq to same data
+    assert approach_data != ApproachData({"t1": {1, 2, 3}})  # different data
+    assert approach_data != ApproachData(
         {"t1": {1, 2}, "t2": {3, 4}}
     )  # different trials with different edges
-    assert fuzzer_data != ApproachData(
+    assert approach_data != ApproachData(
         {"t1": {1, 2}, "t2": {1, 2}}
     )  # different trials with same edges
-    assert fuzzer_data != ApproachData({"t2": {1, 2}})  # different trial name
+    assert approach_data != ApproachData({"t2": {1, 2}})  # different trial name
 
 
 def test_relcov_default_params_single_trials() -> None:

@@ -7,16 +7,16 @@ from differential_coverage.approach_data import ApproachData
 SAMPLE_DIR = (Path(__file__).parent / "sample_coverage").resolve()
 
 SAMPLE_CAMPAIGN_CONTENT = {
-    "fuzzer_a": {
+    "approach_a": {
         "t1": {"1", "2"},
         "t2": {"1", "3"},
     },
-    "fuzzer_b": {
+    "approach_b": {
         "t1": {"1", "3"},
         "t2": {"1", "3"},
         "t3": {"1"},
     },
-    "fuzzer_c": {
+    "approach_c": {
         "t1": {"1", "2", "3"},
         "t2": {"1", "2", "3"},
     },
@@ -37,7 +37,7 @@ def test_constructor() -> None:
     with pytest.raises(ValueError):
         DifferentialCoverage({})
     with pytest.raises(ValueError):
-        DifferentialCoverage({"fuzzer_a": {}})
+        DifferentialCoverage({"approach_a": {}})
 
 
 def test_read_campaign_dir() -> None:
@@ -47,21 +47,24 @@ def test_read_campaign_dir() -> None:
 
 
 def test_relscores_single_approach() -> None:
-    dc = DifferentialCoverage({"fuzzer_a": {"t1": {1, 2}, "t2": {1, 3}}})
-    assert dc.relscores() == {"fuzzer_a": 0.0}
+    dc = DifferentialCoverage({"approach_a": {"t1": {1, 2}, "t2": {1, 3}}})
+    assert dc.relscores() == {"approach_a": 0.0}
 
 
 def test_relscores_multiple_approaches() -> None:
     dc = DifferentialCoverage(
         {
-            "fuzzer_a": {"t1": {1, 2}},
-            "fuzzer_b": {"t1": {1, 2, 3}},
-            "fuzzer_c": {"t1": {1, 3}, "t2": {1}},
+            "approach_a": {"t1": {1, 2}},
+            "approach_b": {"t1": {1, 2, 3}},
+            "approach_c": {"t1": {1, 3}, "t2": {1}},
         }
     )
 
-    assert dc.relscores() == {
-        "fuzzer_a": 1.0,  # 2 is not hit by fuzzer_c
-        "fuzzer_b": 2.0,  # 2 is not hit by fuzzer_c, 3 is not hit by fuzzer_a
-        "fuzzer_c": 0.5,  # 3 is not hit by fuzzer_a, but only hit in half of the trials
-    }
+    assert (
+        dc.relscores()
+        == {
+            "approach_a": 1.0,  # 2 is not hit by approach_c
+            "approach_b": 2.0,  # 2 is not hit by approach_c, 3 is not hit by approach_a
+            "approach_c": 0.5,  # 3 is not hit by approach_a, but only hit in half of the trials
+        }
+    )

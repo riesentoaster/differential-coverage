@@ -42,5 +42,5 @@ def test_docs() -> None:
             print(f"relcov {a1_name} vs {a2_name}: {relcov}")
 
     relscores: dict[str, float] = dc.relscores()
-    for fuzzer_name, relscore in relscores.items():
-        print(f"relscore {fuzzer_name}: {relscore}")
+    for approach_name, relscore in relscores.items():
+        print(f"relscore {approach_name}: {relscore}")

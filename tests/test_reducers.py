@@ -32,11 +32,11 @@ def test_collection_reducer() -> None:
             return frozenset()
 
     reducer = CollectionReducer.UNION
-    fuzzer_data = TestApproachData({})
-    reducer.reduce(fuzzer_data)
-    assert fuzzer_data.calls == ["edges_union"]
+    approach_data = TestApproachData({})
+    reducer.reduce(approach_data)
+    assert approach_data.calls == ["edges_union"]
 
     reducer = CollectionReducer.INTERSECTION
-    fuzzer_data = TestApproachData({})
-    reducer.reduce(fuzzer_data)
-    assert fuzzer_data.calls == ["edges_intersection"]
+    approach_data = TestApproachData({})
+    reducer.reduce(approach_data)
+    assert approach_data.calls == ["edges_intersection"]
