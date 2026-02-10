@@ -91,10 +91,10 @@ This can be approximately simplified to the following:
 
 $$
 \begin{align}
-\text{missing\_approaches}(e) &= \text{number of approaches that never hit }e \\
+\text{missing-approaches}(e) &= \text{number of approaches that never hit }e \\
 \text{hits}(a,e) &= \text{number of trials of }a\text{ that hit }e \\
 \text{trials}(a) &= \text{number of trials of }a\text{ with non-empty coverage} \\
-\text{relscore}(a,e) &= \text{missing\_approaches}(e)
+\text{relscore}(a,e) &= \text{missing-approaches}(e)
 \times\frac
 {\text{hits}(a,e)}
 {\text{trials}(a)} \\

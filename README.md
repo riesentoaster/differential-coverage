@@ -13,7 +13,7 @@ Here, *differential coverage* can help: By comparing *what parts* of the target 
 In principle, differential coverage measures how much of approach $a_2$'s coverage can also be covered by approach $a_1$. This can be done in multiple ways:
 
 - `relcov` does exactly this. It is an *asymetrical* measure between coverage of two approaches. If the approach relies on randomness (such as most fuzzers), it can aggregate over multiple trials of these.
-- `relscore` aggregates all this data to a single order of all approaches. This measure, compared to simple coverage numbers, takes into account and values higher approaches that can cover code that no other approach covers. However, compared to `relscore`, this again drops a lot of information.
+- `relscore` aggregates all this data to an order of all approaches. This measure, compared to simple coverage numbers, takes into account and values higher approaches that can cover code that no other approach covers. However, compared to `relcov`, this hides a lot of information in this aggregation.
 
 For more precise definitions, including formulas, look at [DEFINITIONS.md](./DEFINITIONS.md).
 
