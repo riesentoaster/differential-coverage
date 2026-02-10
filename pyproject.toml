@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "differential_coverage"
 version = "0.3.0"
-description = "Compute differential coverage for fuzzer runs."
+description = "Compute differential coverage, a better way of comparing testing tools."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

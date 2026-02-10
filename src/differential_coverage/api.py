@@ -1,57 +1,87 @@
+from functools import reduce
 from pathlib import Path
+from typing import Collection, Generic, Mapping
+import warnings
 
-from differential_coverage.files import read_campaign_dir
-from differential_coverage.relcov import performance_over_fuzzer, reliability
-from differential_coverage.relscore import calculate_differential_coverage_scores
+from differential_coverage.fs import read_campaign_dir
+from differential_coverage.approach_data import ApproachData
 from differential_coverage.types import (
-    CampaignMap,
-    FuzzerIdentifier,
+    EdgeId,
+    ApproachId,
+    TrialId,
 )
 
 
-def read_campaign(path: Path) -> CampaignMap:
-    """Public helper to read a campaign directory into an in-memory map."""
-    return read_campaign_dir(path)
+def _calculate_relscore(
+    approach_data: ApproachData[TrialId, EdgeId],
+    all_edges: frozenset[EdgeId],
+    approaches_that_never_hit_edge: dict[EdgeId, set[ApproachId]],
+) -> float:
+    score = 0.0
+    trials_with_non_empty_cov = len(
+        [1 for trial in approach_data.edges_by_trial.values() if len(trial) > 0]
+    )
+    if trials_with_non_empty_cov == 0:
+        warnings.warn("Approach has no trials with non-empty coverage")
+        return 0.0
+
+    for e in all_edges:
+        approaches_that_never_hit_e = len(approaches_that_never_hit_edge[e])
+        trials_that_hit_e = len(
+            [1 for trial in approach_data.edges_by_trial.values() if e in trial]
+        )
+        score += (
+            approaches_that_never_hit_e * trials_that_hit_e / trials_with_non_empty_cov
+        )
+    return score
 
 
-def run_relscore(campaign: CampaignMap) -> dict[FuzzerIdentifier, float]:
-    """Compute relscore (SBFT'25) for each fuzzer in a campaign."""
-    return calculate_differential_coverage_scores(campaign)
+class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
+    """High-level view of a full campaign across approaches and trials."""
 
+    def __init__(
+        self,
+        campaign: Mapping[ApproachId, Mapping[TrialId, Collection[EdgeId]]],
+    ) -> None:
+        if len(campaign) == 0:
+            raise ValueError("Did not provide any approaches")
+        for f, t in campaign.items():
+            if len(t) == 0:
+                raise ValueError(f"Approach {f} has no trials")
 
-def run_relcov_performance_fuzzer(
-    campaign: CampaignMap,
-    against: FuzzerIdentifier,
-) -> dict[FuzzerIdentifier, float]:
-    """Compute relcov-based performance of each fuzzer relative to another."""
-    if against not in campaign:
-        raise ValueError(f"Reference fuzzer {against!r} not found in campaign.")
-    ref = campaign[against]
-    return {
-        name: performance_over_fuzzer(trials, ref)
-        for name, trials in campaign.items()
-        if name != against
-    }
+        self._approaches: dict[ApproachId, ApproachData[TrialId, EdgeId]] = {
+            f: ApproachData(t) for f, t in campaign.items()
+        }
 
+    @classmethod
+    def from_campaign_dir(
+        cls: type["DifferentialCoverage[ApproachId, TrialId, EdgeId]"],
+        path: Path,
+    ) -> "DifferentialCoverage[str, str, str]":
+        return DifferentialCoverage[str, str, str](read_campaign_dir(path))
 
-def run_relcov_performance_fuzzer_all(
-    campaign: CampaignMap,
-) -> tuple[
-    list[FuzzerIdentifier], dict[FuzzerIdentifier, dict[FuzzerIdentifier, float]]
-]:
-    """
-    Compute relcov-based performance of each fuzzer relative to every other as reference.
+    @property
+    def approaches(self) -> Mapping[ApproachId, ApproachData[TrialId, EdgeId]]:
+        return self._approaches
 
-    Returns (ref_fuzzers, table) where table[row_fuzzer][ref_fuzzer] is the performance
-    of row_fuzzer relative to ref_fuzzer (1.0 when row_fuzzer == ref_fuzzer).
-    """
-    ref_fuzzers = sorted(campaign.keys())
-    table: dict[FuzzerIdentifier, dict[FuzzerIdentifier, float]] = {
-        name: {} for name in campaign
-    }
-    for against in ref_fuzzers:
-        scores = run_relcov_performance_fuzzer(campaign, against)
-        for fuzzer, score in scores.items():
-            table[fuzzer][against] = score
-        table[against][against] = reliability(campaign[against])
-    return (ref_fuzzers, table)
+    def relscores(self) -> dict[ApproachId, float]:
+        all_edges = reduce(
+            lambda x, y: x.union(y),
+            (approach_data.edges_union for approach_data in self._approaches.values()),
+        )
+        approaches_that_never_hit_edge = {
+            edge: {
+                approach_name
+                for approach_name, approach_data in self._approaches.items()
+                if edge not in approach_data.edges_union
+            }
+            for edge in all_edges
+        }
+
+        scores = {
+            approach_name: _calculate_relscore(
+                approach_data, all_edges, approaches_that_never_hit_edge
+            )
+            for approach_name, approach_data in self._approaches.items()
+        }
+        return scores

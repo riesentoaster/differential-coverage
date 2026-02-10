@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 import pytest
 
-from differential_coverage import main
+from differential_coverage.cli import main
 
 SAMPLE_DIR = (Path(__file__).parent / "sample_coverage").resolve()
 
@@ -30,7 +30,7 @@ def _run_cli(
 
 
 def test_cli_relscore() -> None:
-    """CLI relscore prints all fuzzers sorted by score descending."""
+    """CLI relscore prints all approaches sorted by score descending."""
     code, out, _ = _run_cli(["relscore", str(SAMPLE_DIR)])
     assert code == 0
     lines = [s.strip() for s in out.strip().splitlines()]
@@ -44,26 +44,8 @@ def test_cli_relscore() -> None:
     assert lines[0].startswith("fuzzer_c:")
 
 
-def test_cli_relcov_performance_fuzzer_single() -> None:
-    """CLI relcov with --single prints other fuzzers."""
-    code, out, _ = _run_cli(
-        [
-            "relcov",
-            str(SAMPLE_DIR),
-            "--single",
-            "fuzzer_c",
-        ]
-    )
-    assert code == 0
-    lines = [s.strip() for s in out.strip().splitlines()]
-    # All fuzzers except fuzzer_c (and seeds)
-    assert any("fuzzer_a" in line for line in lines)
-    assert any("fuzzer_b" in line for line in lines)
-    assert not any(line.startswith("fuzzer_c:") for line in lines)
-
-
-def test_cli_relcov_performance_fuzzer_table() -> None:
-    """CLI relcov without --single prints a table."""
+def test_cli_relcov_performance_approach_table() -> None:
+    """CLI relcov prints a table."""
     code, out, _ = _run_cli(
         [
             "relcov",
@@ -72,8 +54,8 @@ def test_cli_relcov_performance_fuzzer_table() -> None:
     )
     assert code == 0
     lines = [s.strip() for s in out.strip().splitlines()]
-    # Header: fuzzer + all fuzzers as columns
-    assert "fuzzer" in lines[0].lower()
+    # Header: approach + all approaches as columns
+    assert "approach" in lines[0].lower()
     assert "fuzzer_a" in lines[0] or "fuzzer_b" in lines[0]
     assert any("fuzzer_a" in line for line in lines)
     assert any("fuzzer_b" in line for line in lines)
@@ -81,13 +63,13 @@ def test_cli_relcov_performance_fuzzer_table() -> None:
     assert any("seeds" in line for line in lines)
 
 
-def test_cli_exclude_fuzzer_relscore() -> None:
-    """CLI --exclude-fuzzer removes fuzzers from relscore output."""
+def test_cli_exclude_approach_relscore() -> None:
+    """CLI --exclude-approach removes approaches from relscore output."""
     code, out, _ = _run_cli(
         [
-            "--exclude-fuzzer",
+            "--exclude-approach",
             "seeds",
-            "--exclude-fuzzer",
+            "--exclude-approach",
             "fuzzer_b",
             "relscore",
             str(SAMPLE_DIR),
@@ -102,29 +84,14 @@ def test_cli_exclude_fuzzer_relscore() -> None:
     assert not any("seeds" in line for line in lines)
 
 
-def test_cli_exclude_fuzzer_performance_fuzzer() -> None:
-    """CLI --exclude-fuzzer with relcov --single; reference must not be excluded."""
-    code, _, _ = _run_cli(
-        [
-            "--exclude-fuzzer",
-            "fuzzer_c",
-            "relcov",
-            str(SAMPLE_DIR),
-            "--single",
-            "fuzzer_c",
-        ]
-    )
-    assert code != 0
-
-
 @pytest.mark.parametrize(
     "pattern", ["fuzzer_[bc]", "fuzzer_b|fuzzer_c", "fuzzer_(b|c)"]
 )
-def test_cli_exclude_fuzzer_regex(pattern: str) -> None:
-    """CLI --exclude-fuzzer accepts regex; one pattern can exclude multiple fuzzers."""
+def test_cli_exclude_approach_regex(pattern: str) -> None:
+    """CLI --exclude-approach accepts regex; one pattern can exclude multiple approaches."""
     code, out, _ = _run_cli(
         [
-            "--exclude-fuzzer",
+            "--exclude-approach",
             pattern,  # regex: matches fuzzer_b and fuzzer_c
             "relscore",
             str(SAMPLE_DIR),
@@ -138,11 +105,11 @@ def test_cli_exclude_fuzzer_regex(pattern: str) -> None:
     assert not any("fuzzer_c" in line for line in lines)
 
 
-def test_cli_include_fuzzer_regex() -> None:
-    """CLI --include-fuzzer whitelists by regex; only matching fuzzers are used."""
+def test_cli_include_approach_regex() -> None:
+    """CLI --include-approach whitelists by regex; only matching approaches are used."""
     code, out, _ = _run_cli(
         [
-            "--include-fuzzer",
+            "--include-approach",
             "fuzzer_.*",  # only fuzzer_a, fuzzer_b, fuzzer_c (not seeds)
             "relscore",
             str(SAMPLE_DIR),
@@ -161,9 +128,9 @@ def test_cli_include_then_exclude() -> None:
     """Include applies first, then exclude (both regex)."""
     code, out, _ = _run_cli(
         [
-            "--include-fuzzer",
+            "--include-approach",
             "fuzzer_.*",
-            "--exclude-fuzzer",
+            "--exclude-approach",
             "fuzzer_b",
             "relscore",
             str(SAMPLE_DIR),
@@ -179,11 +146,11 @@ def test_cli_include_then_exclude() -> None:
 
 
 def test_cli_csv_relscore() -> None:
-    """CLI --output csv with relscore outputs CSV with header fuzzer,score."""
+    """CLI --output csv with relscore outputs CSV with header approach,score."""
     code, out, _ = _run_cli(["--output", "csv", "relscore", str(SAMPLE_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
-    assert lines[0] == "fuzzer,score"
+    assert lines[0] == "approach,score"
     assert len(lines) == 5  # header + 4 fuzzers
     assert any("fuzzer_c," in line for line in lines[1:])
     assert any("fuzzer_a," in line for line in lines[1:])
@@ -194,7 +161,7 @@ def test_cli_csv_relcov_performance_fuzzer_table() -> None:
     code, out, _ = _run_cli(["--output", "csv", "relcov", str(SAMPLE_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
-    assert "fuzzer" in lines[0]
+    assert "approach" in lines[0]
     assert "fuzzer_a" in lines[0] or "fuzzer_b" in lines[0]
     assert len(lines) >= 4  # header + data rows
 
@@ -209,7 +176,7 @@ def test_cli_latex_relcov_performance_fuzzer_table() -> None:
     assert lines[-1] == r"\end{tabular}"
 
 
-def test_cli_latex_color_relcov_performance_fuzzer_table() -> None:
+def test_cli_latex_color_relcov_performance_approach_table() -> None:
     """CLI --output latex with --latex-enable-color outputs colored LaTeX tabular."""
     code, out, _ = _run_cli(
         [

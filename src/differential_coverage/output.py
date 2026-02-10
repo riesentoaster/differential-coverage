@@ -5,26 +5,28 @@ from __future__ import annotations
 import csv
 import sys
 from collections.abc import Mapping, Sequence
-from typing import Literal
+from typing import Literal, Optional
 
 
-from differential_coverage.types import FuzzerIdentifier
+from differential_coverage.types import ApproachId
 
-OutputFormat = Literal["csv", "latex"]
+OutputFormat = Literal["stdout", "csv", "latex"]
 
 
 def print_scores(
-    scores: Mapping[FuzzerIdentifier, float],
+    scores: Mapping[ApproachId, float],
     *,
-    output: OutputFormat | None = None,
+    output: OutputFormat = "stdout",
     colormap: str = "viridis",
     latex_enable_color: bool = False,
 ) -> None:
-    """Print one score per fuzzer, in the requested output format."""
+    """Print one score per approach, in the requested output format."""
     name_sorted = sorted(scores.items(), key=lambda x: x[0])
     performance_sorted = sorted(name_sorted, key=lambda x: x[1], reverse=True)
 
-    if output == "csv":
+    if output == "stdout":
+        _print_scores_plain(performance_sorted)
+    elif output == "csv":
         _print_scores_csv(performance_sorted)
     elif output == "latex":
         _print_scores_latex(
@@ -33,23 +35,23 @@ def print_scores(
             colormap=colormap,
         )
     else:
-        _print_scores_plain(performance_sorted)
+        raise ValueError(f"Invalid output format: {output}")
 
 
 def _print_scores_plain(
-    performance_sorted: Sequence[tuple[FuzzerIdentifier, float]],
+    performance_sorted: Sequence[tuple[ApproachId, float]],
 ) -> None:
-    for fuzzer, score in performance_sorted:
-        print(f"{fuzzer}: {score:.2f}")
+    for approach, score in performance_sorted:
+        print(f"{approach}: {score:.2f}")
 
 
 def _print_scores_csv(
-    performance_sorted: Sequence[tuple[FuzzerIdentifier, float]],
+    performance_sorted: Sequence[tuple[ApproachId, float]],
 ) -> None:
     writer = csv.writer(sys.stdout)
-    writer.writerow(("fuzzer", "score"))
-    for fuzzer, score in performance_sorted:
-        writer.writerow((fuzzer, f"{score:.2f}"))
+    writer.writerow(("approach", "score"))
+    for approach, score in performance_sorted:
+        writer.writerow((approach, f"{score:.2f}"))
 
 
 def _norm_minmax(values: Sequence[float]) -> tuple[float, float]:
@@ -67,14 +69,14 @@ def _norm_value(v: float, min_v: float, max_v: float) -> float:
 
 
 def _print_scores_latex(
-    performance_sorted: Sequence[tuple[FuzzerIdentifier, float]],
+    performance_sorted: Sequence[tuple[ApproachId, float]],
     *,
     enable_color: bool = False,
     colormap: str = "viridis",
 ) -> None:
     """LaTeX table (optionally with score cells colored by value)."""
     print(r"\begin{tabular}{lr}")
-    print(r"fuzzer & score \\")
+    print(r"approach & score \\")
     if not performance_sorted:
         print(r"\end{tabular}")
         return
@@ -83,61 +85,63 @@ def _print_scores_latex(
     if enable_color:
         values = [s for _, s in performance_sorted]
         min_v, max_v = _norm_minmax(values)
-    for fuzzer, score in performance_sorted:
+    for approach, score in performance_sorted:
         if enable_color:
             n = _norm_value(score, min_v, max_v)
             hex_color = _colormap_light_hex(n, colormap=colormap)
-            print(rf"{fuzzer} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
+            print(rf"{approach} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
         else:
-            print(f"{fuzzer} & {score:.2f} \\\\")
+            print(f"{approach} & {score:.2f} \\\\")
     print(r"\end{tabular}")
 
 
 def print_relcov_corpus_table(
-    corpus_fuzzers: Sequence[FuzzerIdentifier],
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
+    corpus_approaches: Sequence[ApproachId],
+    table: Mapping[ApproachId, Mapping[ApproachId, float]],
     *,
-    output: OutputFormat | None = None,
+    output: OutputFormat = "stdout",
     colormap: str = "viridis",
-    latex_rotate_headers: float | None = None,
+    latex_rotate_headers: Optional[float] = None,
     latex_enable_color: bool = False,
 ) -> None:
-    """Print a table of relcov performance: rows = fuzzers, columns = corpus fuzzers."""
-    if not corpus_fuzzers:
-        print("No corpus fuzzers (single-trial subdirs) found.")
+    """Print a table of relcov performance: rows = approaches, columns = corpus approaches."""
+    if not corpus_approaches:
+        print("No corpus approaches (single-trial subdirs) found.")
         return
 
-    if output == "csv":
-        _print_relcov_corpus_table_csv(corpus_fuzzers, table)
+    if output == "stdout":
+        _print_relcov_corpus_table_plain(corpus_approaches, table)
+    elif output == "csv":
+        _print_relcov_corpus_table_csv(corpus_approaches, table)
     elif output == "latex":
         _print_relcov_corpus_table_latex(
-            corpus_fuzzers,
+            corpus_approaches,
             table,
             rotate_headers=latex_rotate_headers,
             enable_color=latex_enable_color,
             colormap=colormap,
         )
     else:
-        _print_relcov_corpus_table_plain(corpus_fuzzers, table)
+        raise ValueError(f"Invalid output format: {output}")
 
 
 def _print_relcov_corpus_table_plain(
-    corpus_fuzzers: Sequence[FuzzerIdentifier],
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
+    corpus_approaches: Sequence[ApproachId],
+    table: Mapping[ApproachId, Mapping[ApproachId, float]],
 ) -> None:
     row_labels = sorted(table.keys())
     col_width = max(
-        (len(str(c)) for c in list(corpus_fuzzers) + ["fuzzer"]),
+        (len(str(c)) for c in list(corpus_approaches) + ["approach"]),
         default=7,
     )
     num_width = 10  # e.g. " 1.00"
-    header = "fuzzer".ljust(col_width)
-    for c in corpus_fuzzers:
+    header = "approach".ljust(col_width)
+    for c in corpus_approaches:
         header += str(c).rjust(num_width)
     print(header)
     for row in row_labels:
         line = str(row).ljust(col_width)
-        for c in corpus_fuzzers:
+        for c in corpus_approaches:
             val = table[row].get(c)
             if val is not None:
                 line += f"{val:>{num_width}.5f}"
@@ -147,21 +151,21 @@ def _print_relcov_corpus_table_plain(
 
 
 def _print_relcov_corpus_table_csv(
-    corpus_fuzzers: Sequence[FuzzerIdentifier],
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
+    corpus_approaches: Sequence[ApproachId],
+    table: Mapping[ApproachId, Mapping[ApproachId, float]],
 ) -> None:
     row_labels = sorted(table.keys())
     writer = csv.writer(sys.stdout)
-    writer.writerow(["fuzzer"] + list(corpus_fuzzers))
+    writer.writerow(["approach"] + list(corpus_approaches))
     for row in row_labels:
         cells: list[str] = [str(row)]
-        for c in corpus_fuzzers:
+        for c in corpus_approaches:
             val = table[row].get(c)
             cells.append(f"{val:.3f}" if val is not None else "")
         writer.writerow(cells)
 
 
-def _latex_print_rotcol_command(*, angle: float | None) -> None:
+def _latex_print_rotcol_command(*, angle: Optional[float] = None) -> None:
     """Emit the \\rotcol LaTeX command definition.
     Requires \\usepackage{graphicx} and \\usepackage{calc}.
     Rotated text is raised so it stays in the header row; row height is \\widthof{#1}.
@@ -182,7 +186,7 @@ def _latex_print_rotcol_command(*, angle: float | None) -> None:
     )
 
 
-def _latex_rotcol(text: str, *, angle: float | None) -> str:
+def _latex_rotcol(text: str, *, angle: Optional[float] = None) -> str:
     """Format text as a (possibly rotated) column header using the \\rotcol command."""
     if angle is None:
         return text
@@ -190,7 +194,7 @@ def _latex_rotcol(text: str, *, angle: float | None) -> str:
 
 
 def _collect_numeric_values(
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
+    table: Mapping[ApproachId, Mapping[ApproachId, float]],
 ) -> list[float]:
     values: list[float] = []
     for row in table.values():
@@ -201,10 +205,10 @@ def _collect_numeric_values(
 
 
 def _print_relcov_corpus_table_latex(
-    corpus_fuzzers: Sequence[FuzzerIdentifier],
-    table: Mapping[FuzzerIdentifier, Mapping[FuzzerIdentifier, float]],
+    corpus_approaches: Sequence[ApproachId],
+    table: Mapping[ApproachId, Mapping[ApproachId, float]],
     *,
-    rotate_headers: float | None,
+    rotate_headers: Optional[float] = None,
     enable_color: bool = False,
     colormap: str = "viridis",
 ) -> None:
@@ -220,19 +224,19 @@ def _print_relcov_corpus_table_latex(
         all_values = _collect_numeric_values(table)
         min_v, max_v = _norm_minmax(all_values)
 
-    num_cols = 1 + len(corpus_fuzzers)
+    num_cols = 1 + len(corpus_approaches)
     align_spec = "l" + "r" * (num_cols - 1)
     _latex_print_rotcol_command(angle=rotate_headers)
     print(r"\begin{tabular}{" + align_spec + r"}")
     header_cells = [""] + [
         _latex_rotcol(escape_latex(str(c)), angle=rotate_headers)
-        for c in corpus_fuzzers
+        for c in corpus_approaches
     ]
     print(" & ".join(header_cells) + r" \\")
     print(r"\hline")
     for row in row_labels:
         cells: list[str] = [escape_latex(str(row))]
-        for c in corpus_fuzzers:
+        for c in corpus_approaches:
             val = table[row].get(c)
             if val is None:
                 cells.append("")

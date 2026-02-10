@@ -1,174 +1,120 @@
 # Differential Coverage
 
-Absolute coverage numbers aren't painting the whole picture: Different fuzzers may reach the same total coverage, but cover different parts of the program. Or, fuzzer (A) may reach more coverage than fuzzer (B), but (B) may reach coverage that (A) doesn't reach — so it's still valuable.
+> A better way of comparing testing tools.
 
-## Definition
+## Why?
 
-There are different ways of measuring differential coverage:
-- Leonelli et al. introduced `relcov` in their paper on TwinFuzz[^1]. It allows comparing the relative performance of one fuzzer against another and provides values $0\leq x\leq 1$.
-- Alternatively, `relscore` was proposed in the SBFT’25 Competition Report[^2] by Crump et al. It provides a total ordering of a list of fuzzers.
+Looking only at absolute (code) coverage when comparing testing tools loses a lot of information: Do all approaches cover the same blocks? Or just the same amount? How different is their coverage?
 
-### `relcov`
-`relcov` was defined as the following[^1]:
+Here, *differential coverage* can help: By comparing *what parts* of the target is covered by each approach, we get much better insight into what is actually happening.
 
-$$
-\text{upper}(f)=\bigcup\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
-$$
+## What?
 
-$$
-\text{lower}(f)=\bigcap\text{cov}(t)\quad\forall t\in \text{trials}(f)\\
-$$
+In principle, differential coverage measures how much of approach $a_2$'s coverage can also be covered by approach $a_1$. This can be done in multiple ways:
 
-$$
-\text{relcov}(c,f)=\frac{\left|c\cap\text{upper}(f)\right|}{\left|\text{upper}(f)\right|}
-$$
+- `relcov` does exactly this. It is an *asymetrical* measure between coverage of two approaches. If the approach relies on randomness (such as most fuzzers), it can aggregate over multiple trials of these.
+- `relscore` aggregates all this data to a single order of all approaches. This measure, compared to simple coverage numbers, takes into account and values higher approaches that can cover code that no other approach covers. However, compared to `relscore`, this again drops a lot of information.
 
-This can be used in various ways, such as:
+For more precise definitions, including formulas, look at [DEFINITIONS.md](./DEFINITIONS.md).
 
-#### Reliability of a Fuzzer
+## How?
 
-The reliability of a fuzzer $f$ is its ability to always reach its full potential across a set of trials of $f$ $T_f$. It is calculated as the median of the `relcov` values between each trial $t$ and the union of all reached coverage. Or, in a formula:
+`differential-coverage` currently reads `afl-showmap`-style data: files with `<edge_id>: <count>` rows, where `<count>` is only checked to contain a number $\geq 1$. These files are expected to be in the following structure:
 
-$$
-\text{reliability}(f)=\text{med}({\text{relcov}(\text{cov}(t),f)})\quad\forall t\in T_f
-$$
+```
+coverage_data
+|-- approach_1
+|   |-- showmap_trial_1.out
+|   |-- showmap_trial_2.out
+|   `-- showmap_trial_3.out
+|-- approach_2
+|   |-- showmap_trial_1.out
+|   |-- showmap_trial_2.out
+|   `-- showmap_trial_3.out
+`-- seeds
+    `-- showmap.out
+```
 
-#### Performance over Input Corpus
+> If you would like support for other input formats, please raise an issue in the GitHub repository!
 
-The performance of a fuzzer $f$ over its input corpus is how much extra coverage it can reach past what is already reached in the input corpus. It is calculated as `relcov` of the coverage of the input corpus $c_\text{input-corpus}$ and the fuzzer. As a formula:
+### Installation
 
-$$
-\text{performance-over-input-corpus}(f)=\text{relcov}(c_\text{input-corpus},f)
-$$
+Install `differential-coverage` directly from pypi:
 
-#### Performance over other fuzzers
+```bash
+pip install differential-coverage
 
-The relative performance of a fuzzer $f_1$ relative to another fuzzer $f_2$ (or another configuration of the same fuzzer, or the same fuzzer with the same configuration but a different input corpus, or whatever else you want to test against) is how much extra coverage can be reached by $f_1$ over $f_2$. It is calculated as the median of the `relcov` values between each trial $t$ from a set of trials $T_{f_1}$ of $f_1$ against the union of all coverage reached by $f_2$ across different trials. Or, in a formula:
-
-$$
-\text{performance-over-fuzzer}(f_1, f_2)=\text{med}({\text{relcov}(\text{cov}(t),f_2)})\quad\forall t\in T_{f_1}
-$$
-
-### `relscore`
-
-`relscore` was defined as the following[^2]:
-
-$$
-relscore(f,b,s,e) = \left|f_0\in F|e\notin \text{cov}(b,t,s)\forall t\in \text{trials}(f_0,b)\right|
-\times\frac
-{\left|\{t\in \text{trials}(f,b)\ |\ e \in \text{cov}(b,t,s)\}\right|}
-{\left|\{t\in \text{trials}(f,b)\ |\ \text{cov}(b,t,s)\neq \emptyset\}\right|}
-$$
-
-The score of a fuzzer is then
-
-$$
-\text{score}(f,b,s)=\sum_{e\in E}\text{relscore}(f,b,s,e)
-$$
-
-This can be simplified to the following:
-
-$$
-\text{differential coverage}(f,e) = \text{number of fuzzers that never hit }e
-\times\frac
-{\text{number of trials of }f\text{ that hit }e}
-{\text{number of trials of }f\text{ with non-empty cov}}
-$$
-
-$$
-\text{score}(f) = \text{sum of differential coverage}(f,e)\text{ over all edges e}
-$$
-
-## Usage
-
-> Disclaimer: This is subject to change.
-
-Assume `<campaign_dir>` is a directory of subdirectories for each fuzzer, where each fuzzer subdirectory contains coverage files for each trial. Currently, the output format of `afl-showmap` is supported (lines with `edge_id:count`, where we only care if `count > 0`).
-
-PRs for other data formats welcome :)
+# if you need latex output support
+pip install differential-coverage[latex]
+```
 
 ### Command Line Interface
 
-All commands take the same campaign directory layout: one subdirectory per fuzzer, each with afl-showmap coverage files. Use `-o csv` for machine-readable output.
+Generally, the command line interface follows the following structure:
 
 ```bash
+differential-coverage {relcov,relscore} <your-input-dir>
+```
+
+There are some options available, e.g. for output as csv or (colored) LaTeX table:
+
+```
 differential-coverage --help
-```
-
-```
-usage: differential-coverage [-h] [-i PATTERN] [-x PATTERN] [--output FORMAT]
-                             [--latex-rotate-headers DEGREES] [--latex-enable-color]
-                             [--latex-colormap NAME]
-                             command ...
-
-Compute differential coverage relscore and relcov-based measures from afl-showmap
-coverage. All commands take one campaign directory: one subdir per fuzzer, each with
-coverage files.
-
-options:
-  -h, --help            show this help message and exit
-  -i, --include-fuzzer PATTERN
-                        Include only fuzzers whose name matches this regex (whitelist).
-                        Can be specified multiple times; a fuzzer is kept if it matches
-                        any pattern.
-  -x, --exclude-fuzzer PATTERN
-                        Exclude fuzzers whose name matches this regex. Can be specified
-                        multiple times; apply after --include-fuzzer.
-  --output, -o FORMAT   Output format: csv for CSV, latex for LaTeX tabular (requires
-                        "latex" optional dependencies)
-  --latex-rotate-headers DEGREES
-                        Rotate LaTeX table column headers by this angle in degrees (e.g.
-                        45). Requires \usepackage[table]{xcolor} and
-                        \usepackage{adjustbox}.
-  --latex-enable-color  Enable background colors for LaTeX tables and score outputs when
-                        using --output latex. Requires \usepackage[table]{xcolor}.
-  --latex-colormap NAME
-                        Matplotlib colormap name to use for colored LaTeX output (e.g.
-                        viridis, plasma, magma, inferno). Default: viridis.
-
-subcommands:
-  command
-    relscore            Compute relscore (SBFT'25) from a campaign directory containing
-                        one subdirectory per fuzzer with afl-showmap files.
-    relcov              Compute relcov-based performance of each fuzzer relative to
-                        reference fuzzers. By default prints a table (all fuzzers × all
-                        fuzzers as reference). Use --single to get scores for one
-                        reference only.
 ```
 
 ### API
 
-Load a campaign from disk and run the same computations programmatically. The API lives in `differential_coverage.api`:
-
 ```python
-from pathlib import Path
-from differential_coverage.api import (
-    read_campaign,
-    run_relscore,
-    run_relcov_performance_fuzzer,
-    run_relcov_performance_fuzzer_all,
+from differential_coverage import (
+    DifferentialCoverage,
+    ApproachData,
+    CollectionReducer,
+    ValueReducer,
 )
 
-path = Path("path/to/campaign_dir")
-campaign = read_campaign(path)  # dict[fuzzer_name, dict[trial_id, dict[edge_id, count]]]
+# last part (EdgeId) can be any comparable type, e.g. str, int
+dc: DifferentialCoverage[str, str, Any]
 
-# Relscore (SBFT'25): fuzzer -> score
-scores = run_relscore(campaign)
+# read from campaign directory, see above for structure
+dc = DifferentialCoverage.from_campaign_dir("<your-input-dir>")
+# or from a memory structure
+dc = DifferentialCoverage(
+    {
+        "approach_1": {"trial_1": {1, 2}, "trial_2": {1, 3}},
+        "approach_2": {"trial_1": {1, 3}, "trial_2": {1, 3}},
+        "approach_3": {"trial_1": {1, 2, 3}, "trial_2": {1, 2, 3}},
+        "seeds": {"seeds": {1}},
+    }
+)
 
-# Relcov performance vs a reference fuzzer (reference excluded from result)
-perf = run_relcov_performance_fuzzer(campaign, against="fuzzer_c")
+a1_name: str
+a1_data: ApproachData[str, Any]
+a2_name: str
+a2_data: ApproachData[str, Any]
 
-# Relcov performance vs every fuzzer as reference: (ref_fuzzers, table[row][col])
-ref_fuzzers, table = run_relcov_performance_fuzzer_all(campaign)
+for a1_name, a1_data in dc.approaches.items():
+    for a2_name, a2_data in dc.approaches.items():
+        relcov: float = a1_data.relcov(
+            a2_data,
+            value_reducer=ValueReducer.MEDIAN,  # how to reduce relcov values from multiple trials from a1
+            collection_reducer=CollectionReducer.UNION,  # how to reduce the edges from multiple trials from a2
+        )
+        print(f"relcov {a1_name} vs {a2_name}: {relcov}")
+
+relscores: dict[str, float] = dc.relscores()
+for fuzzer_name, relscore in relscores.items():
+    print(f"relscore {fuzzer_name}: {relscore}")
+
 ```
 
-All `run_*` functions take a **campaign** (in-memory map: fuzzer name → trial id → edge id → count). Use `read_campaign(path)` to build it from a directory. The single-reference function returns `dict[str, float]` (fuzzer name → value). The `*_all` function returns `(list_of_refs, table)` where `table[row_fuzzer][ref_fuzzer]` is the score (1.0 on the diagonal). `run_relcov_performance_fuzzer` raises `ValueError` if the reference fuzzer is missing.
+### Hints
 
-## Installation
-```bash
-pip install .
-pip install ".[latex]" # if you need latex output support
-```
+When using differential coverage to compare different testing approaches, you may want to do the following:
+- Use this approach early on in your development process already, it has helped me uncover problems with my evaluation setup. And you want to discover those before having to redo your entire evaluation.
+- For approaches that rely on radomness, such as most fuzzers, run multiple trials! This is generally necessary, not just for differential coverage[^sok].
+- For approaches that rely on some sort of input corpus, such as some fuzzers, record coverage of the target when passed just the input corpus, and add that to your data. This allows analyzing how much extra coverage a fuzzer reaches, and how the corpus itself compares to other fuzzers.
+- Related: If you compare an approach with different seed corpora, add coverage maps from all input corpora to your table, to compare them within each other, and against the approaches' results based on them.
+
 
 ## Development
 Install dev dependencies and set up the pre-commit hook (runs a couple of checks before committing):
@@ -177,6 +123,4 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
-[^1]: TWINFUZZ: Differential Testing of Video Hardware Acceleration Stacks, https://www.ndss-symposium.org/ndss-paper/twinfuzz-differential-testing-of-video-hardware-acceleration-stacks/
-
-[^2]: SBFT’25 Competition Report — Fuzzing Track, https://ieeexplore.ieee.org/document/11086561
+[^sok] SoK: Prudent Evaluation Practices for Fuzzing, https://ieeexplore.ieee.org/document/10646824
