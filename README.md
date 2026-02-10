@@ -4,7 +4,7 @@
 
 ## Why?
 
-Looking only at absolute (code) coverage when comparing testing tools loses a lot of information: Do all approaches cover the same blocks? Or just the same amount? How different is their coverage?
+Looking only at absolute (code) coverage when comparing testing tools loses a lot of information: Do all approaches cover the same blocks? Or just the same total count? How different is their coverage?
 
 Here, *differential coverage* can help: By comparing *what parts* of the target is covered by each approach, we get much better insight into what is actually happening.
 
