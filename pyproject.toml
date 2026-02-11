@@ -29,8 +29,8 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/valentinhuber/differential_coverage"
-Documentation = "https://github.com/valentinhuber/differential_coverage#readme"
+Repository = "https://github.com/riesentoaster/differential_coverage"
+Documentation = "https://github.com/riesentoaster/differential_coverage#readme"
 
 [tool.setuptools.packages.find]
 where = ["src"]

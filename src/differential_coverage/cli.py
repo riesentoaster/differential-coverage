@@ -1,6 +1,7 @@
 import argparse
 import re
 from collections.abc import Callable
+from importlib import metadata
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -13,6 +14,11 @@ CAMPAIGN_DIR_HELP = (
     "Campaign directory: one subdirectory per approach, each containing "
     "afl-showmap coverage files (id:count per line)."
 )
+
+try:
+    PKG_VERSION = metadata.version("differential-coverage")
+except metadata.PackageNotFoundError:
+    PKG_VERSION = "unknown"
 
 
 def _compile_patterns(patterns: list[str], flag_name: str) -> list[re.Pattern[str]]:
@@ -112,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Compute differential coverage: A better way of comparing testing tools."
         ),
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {PKG_VERSION}",
     )
 
     parser.add_argument(
