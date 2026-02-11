@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "differential_coverage"
-version = "1.0.0"
+version = "1.0.1"
 description = "Compute differential coverage, a better way of comparing testing tools."
 readme = "README.md"
 license = "MIT"
@@ -29,8 +29,8 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/riesentoaster/differential_coverage"
-Documentation = "https://github.com/riesentoaster/differential_coverage#readme"
+Repository = "https://github.com/riesentoaster/differential-coverage"
+Documentation = "https://github.com/riesentoaster/differential-coverage#readme"
 
 [tool.setuptools.packages.find]
 where = ["src"]
