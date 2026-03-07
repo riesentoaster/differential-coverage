@@ -130,18 +130,19 @@ def _print_relcov_corpus_table_plain(
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
 ) -> None:
     row_labels = sorted(table.keys())
+    col_labels = sorted(corpus_approaches)
     col_width = max(
-        (len(str(c)) for c in list(corpus_approaches) + ["approach"]),
+        (len(str(c)) for c in col_labels + ["approach"]),
         default=7,
     )
     num_width = 10  # e.g. " 1.00"
     header = "approach".ljust(col_width)
-    for c in corpus_approaches:
+    for c in col_labels:
         header += str(c).rjust(num_width)
     print(header)
     for row in row_labels:
         line = str(row).ljust(col_width)
-        for c in corpus_approaches:
+        for c in col_labels:
             val = table[row].get(c)
             if val is not None:
                 line += f"{val:>{num_width}.5f}"
@@ -155,11 +156,12 @@ def _print_relcov_corpus_table_csv(
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
 ) -> None:
     row_labels = sorted(table.keys())
+    col_labels = sorted(corpus_approaches)
     writer = csv.writer(sys.stdout)
-    writer.writerow(["approach"] + list(corpus_approaches))
+    writer.writerow(["approach"] + list(col_labels))
     for row in row_labels:
         cells: list[str] = [str(row)]
-        for c in corpus_approaches:
+        for c in col_labels:
             val = table[row].get(c)
             cells.append(f"{val:.3f}" if val is not None else "")
         writer.writerow(cells)
@@ -219,24 +221,24 @@ def _print_relcov_corpus_table_latex(
 
     """LaTeX table (optionally with data cells colored by global min/max)."""
     row_labels = sorted(table.keys())
+    col_labels = sorted(corpus_approaches)
     min_v, max_v = (0.0, 0.0)
     if enable_color:
         all_values = _collect_numeric_values(table)
         min_v, max_v = _norm_minmax(all_values)
 
-    num_cols = 1 + len(corpus_approaches)
+    num_cols = 1 + len(col_labels)
     align_spec = "l" + "r" * (num_cols - 1)
     _latex_print_rotcol_command(angle=rotate_headers)
     print(r"\begin{tabular}{" + align_spec + r"}")
     header_cells = [""] + [
-        _latex_rotcol(escape_latex(str(c)), angle=rotate_headers)
-        for c in corpus_approaches
+        _latex_rotcol(escape_latex(str(c)), angle=rotate_headers) for c in col_labels
     ]
     print(" & ".join(header_cells) + r" \\")
     print(r"\hline")
     for row in row_labels:
         cells: list[str] = [escape_latex(str(row))]
-        for c in corpus_approaches:
+        for c in col_labels:
             val = table[row].get(c)
             if val is None:
                 cells.append("")
