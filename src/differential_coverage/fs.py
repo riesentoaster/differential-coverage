@@ -37,7 +37,11 @@ def read_campaign_dir(
     campaigns: dict[str, dict[str, set[str]]] = {}
     for approach_dir in path.iterdir():
         if approach_dir.is_dir():
-            campaigns[approach_dir.name] = read_approach_dir(approach_dir)
+            approach_data = read_approach_dir(approach_dir)
+            if len(approach_data) == 0:
+                print(f"Warning: No coverage data in {approach_dir}. Skipping.")
+                continue
+            campaigns[approach_dir.name] = approach_data
         else:
             raise ValueError(f"Invalid file: {approach_dir}")
     return campaigns
