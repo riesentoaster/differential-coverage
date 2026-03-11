@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import csv
-import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, Optional
 
 
@@ -13,26 +12,46 @@ from differential_coverage.types import ApproachId
 OutputFormat = Literal["stdout", "csv", "latex"]
 
 
+class _PrinterIO:
+    """Minimal file-like wrapper that forwards writes to a printer function."""
+
+    def __init__(self, printer: Callable[[str], None]) -> None:
+        self._printer = printer
+
+    def write(self, s: str) -> int:  # pragma: no cover - trivial adapter
+        # csv.writer may call write multiple times per row; strip trailing newlines
+        # and avoid printing empty chunks.
+        if not s:
+            return 0
+        if s.endswith("\n"):
+            s = s[:-1]
+        if s:
+            self._printer(s)
+        return len(s)
+
+
 def print_scores(
     scores: Mapping[ApproachId, float],
     *,
     output: OutputFormat = "stdout",
     colormap: str = "viridis",
     latex_enable_color: bool = False,
+    printer: Callable[[str], None] = print,
 ) -> None:
     """Print one score per approach, in the requested output format."""
     name_sorted = sorted(scores.items(), key=lambda x: x[0])
     performance_sorted = sorted(name_sorted, key=lambda x: x[1], reverse=True)
 
     if output == "stdout":
-        _print_scores_plain(performance_sorted)
+        _print_scores_plain(performance_sorted, printer=printer)
     elif output == "csv":
-        _print_scores_csv(performance_sorted)
+        _print_scores_csv(performance_sorted, printer=printer)
     elif output == "latex":
         _print_scores_latex(
             performance_sorted,
             enable_color=latex_enable_color,
             colormap=colormap,
+            printer=printer,
         )
     else:
         raise ValueError(f"Invalid output format: {output}")
@@ -40,15 +59,19 @@ def print_scores(
 
 def _print_scores_plain(
     performance_sorted: Sequence[tuple[ApproachId, float]],
+    *,
+    printer: Callable[[str], None],
 ) -> None:
     for approach, score in performance_sorted:
-        print(f"{approach}: {score:.2f}")
+        printer(f"{approach}: {score:.2f}")
 
 
 def _print_scores_csv(
     performance_sorted: Sequence[tuple[ApproachId, float]],
+    *,
+    printer: Callable[[str], None],
 ) -> None:
-    writer = csv.writer(sys.stdout)
+    writer = csv.writer(_PrinterIO(printer))
     writer.writerow(("approach", "score"))
     for approach, score in performance_sorted:
         writer.writerow((approach, f"{score:.2f}"))
@@ -73,14 +96,15 @@ def _print_scores_latex(
     *,
     enable_color: bool = False,
     colormap: str = "viridis",
+    printer: Callable[[str], None],
 ) -> None:
     """LaTeX table (optionally with score cells colored by value)."""
-    print(r"\begin{tabular}{lr}")
-    print(r"approach & score \\")
+    printer(r"\begin{tabular}{lr}")
+    printer(r"approach & score \\")
     if not performance_sorted:
-        print(r"\end{tabular}")
+        printer(r"\end{tabular}")
         return
-    print(r"\hline")
+    printer(r"\hline")
     min_v, max_v = (0.0, 0.0)
     if enable_color:
         values = [s for _, s in performance_sorted]
@@ -89,10 +113,10 @@ def _print_scores_latex(
         if enable_color:
             n = _norm_value(score, min_v, max_v)
             hex_color = _colormap_light_hex(n, colormap=colormap)
-            print(rf"{approach} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
+            printer(rf"{approach} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
         else:
-            print(f"{approach} & {score:.2f} \\\\")
-    print(r"\end{tabular}")
+            printer(f"{approach} & {score:.2f} \\\\")
+    printer(r"\end{tabular}")
 
 
 def print_relcov_corpus_table(
@@ -103,16 +127,25 @@ def print_relcov_corpus_table(
     colormap: str = "viridis",
     latex_rotate_headers: Optional[float] = None,
     latex_enable_color: bool = False,
+    printer: Callable[[str], None] = print,
 ) -> None:
     """Print a table of relcov performance: rows = approaches, columns = corpus approaches."""
     if not corpus_approaches:
-        print("No corpus approaches (single-trial subdirs) found.")
+        printer("No corpus approaches (single-trial subdirs) found.")
         return
 
     if output == "stdout":
-        _print_relcov_corpus_table_plain(corpus_approaches, table)
+        _print_relcov_corpus_table_plain(
+            corpus_approaches,
+            table,
+            printer=printer,
+        )
     elif output == "csv":
-        _print_relcov_corpus_table_csv(corpus_approaches, table)
+        _print_relcov_corpus_table_csv(
+            corpus_approaches,
+            table,
+            printer=printer,
+        )
     elif output == "latex":
         _print_relcov_corpus_table_latex(
             corpus_approaches,
@@ -120,6 +153,7 @@ def print_relcov_corpus_table(
             rotate_headers=latex_rotate_headers,
             enable_color=latex_enable_color,
             colormap=colormap,
+            printer=printer,
         )
     else:
         raise ValueError(f"Invalid output format: {output}")
@@ -128,6 +162,8 @@ def print_relcov_corpus_table(
 def _print_relcov_corpus_table_plain(
     corpus_approaches: Sequence[ApproachId],
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
+    *,
+    printer: Callable[[str], None],
 ) -> None:
     row_labels = sorted(table.keys())
     col_labels = sorted(corpus_approaches)
@@ -139,7 +175,7 @@ def _print_relcov_corpus_table_plain(
     header = "approach".ljust(col_width)
     for c in col_labels:
         header += str(c).rjust(num_width)
-    print(header)
+    printer(header)
     for row in row_labels:
         line = str(row).ljust(col_width)
         for c in col_labels:
@@ -148,16 +184,18 @@ def _print_relcov_corpus_table_plain(
                 line += f"{val:>{num_width}.5f}"
             else:
                 line += " " * num_width
-        print(line)
+        printer(line)
 
 
 def _print_relcov_corpus_table_csv(
     corpus_approaches: Sequence[ApproachId],
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
+    *,
+    printer: Callable[[str], None],
 ) -> None:
     row_labels = sorted(table.keys())
     col_labels = sorted(corpus_approaches)
-    writer = csv.writer(sys.stdout)
+    writer = csv.writer(_PrinterIO(printer))
     writer.writerow(["approach"] + list(col_labels))
     for row in row_labels:
         cells: list[str] = [str(row)]
@@ -167,7 +205,11 @@ def _print_relcov_corpus_table_csv(
         writer.writerow(cells)
 
 
-def _latex_print_rotcol_command(*, angle: Optional[float] = None) -> None:
+def _latex_print_rotcol_command(
+    *,
+    angle: Optional[float] = None,
+    printer: Callable[[str], None],
+) -> None:
     """Emit the \\rotcol LaTeX command definition.
     Requires \\usepackage{graphicx} and \\usepackage{calc}.
     Rotated text is raised so it stays in the header row; row height is \\widthof{#1}.
@@ -177,7 +219,7 @@ def _latex_print_rotcol_command(*, angle: Optional[float] = None) -> None:
 
     # Raise rotated text by half its width so it doesn't extend below the baseline
     # into the first data row; then reserve full width as row height.
-    print(
+    printer(
         r"""\newcolumntype{R}[2]{%
     >{\adjustbox{angle=#1,lap=\width-(#2)}\bgroup}%
     l%
@@ -213,6 +255,7 @@ def _print_relcov_corpus_table_latex(
     rotate_headers: Optional[float] = None,
     enable_color: bool = False,
     colormap: str = "viridis",
+    printer: Callable[[str], None],
 ) -> None:
     try:
         from pylatex.utils import escape_latex  # type: ignore[import-untyped] # does not provide types
@@ -229,13 +272,13 @@ def _print_relcov_corpus_table_latex(
 
     num_cols = 1 + len(col_labels)
     align_spec = "l" + "r" * (num_cols - 1)
-    _latex_print_rotcol_command(angle=rotate_headers)
-    print(r"\begin{tabular}{" + align_spec + r"}")
+    _latex_print_rotcol_command(angle=rotate_headers, printer=printer)
+    printer(r"\begin{tabular}{" + align_spec + r"}")
     header_cells = [""] + [
         _latex_rotcol(escape_latex(str(c)), angle=rotate_headers) for c in col_labels
     ]
-    print(" & ".join(header_cells) + r" \\")
-    print(r"\hline")
+    printer(" & ".join(header_cells) + r" \\")
+    printer(r"\hline")
     for row in row_labels:
         cells: list[str] = [escape_latex(str(row))]
         for c in col_labels:
@@ -248,8 +291,8 @@ def _print_relcov_corpus_table_latex(
                 cells.append(rf"\cellcolor[HTML]{{{hex_color}}}{{{val:.3f}}}")
             else:
                 cells.append(f"{val:.3f}")
-        print(" & ".join(cells) + r" \\")
-    print(r"\end{tabular}")
+        printer(" & ".join(cells) + r" \\")
+    printer(r"\end{tabular}")
 
 
 def _colormap_light_hex(t: float, *, colormap: str = "viridis") -> str:
