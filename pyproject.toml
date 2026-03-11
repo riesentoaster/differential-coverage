@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "differential_coverage"
-version = "1.0.2"
+version = "1.0.3"
 description = "Compute differential coverage, a better way of comparing testing tools."
 readme = "README.md"
 license = "MIT"
