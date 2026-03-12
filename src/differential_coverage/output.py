@@ -277,7 +277,7 @@ def _print_relcov_corpus_table_latex(
     header_cells = [""] + [
         _latex_rotcol(escape_latex(str(c)), angle=rotate_headers) for c in col_labels
     ]
-    printer(" & ".join(header_cells) + r" \\")
+    printer("\t" + " & ".join(header_cells) + r" \\")
     printer(r"\hline")
     for row in row_labels:
         cells: list[str] = [escape_latex(str(row))]
@@ -291,7 +291,7 @@ def _print_relcov_corpus_table_latex(
                 cells.append(rf"\cellcolor[HTML]{{{hex_color}}}{{{val:.3f}}}")
             else:
                 cells.append(f"{val:.3f}")
-        printer(" & ".join(cells) + r" \\")
+        printer("\t" + " & ".join(cells) + r" \\")
     printer(r"\end{tabular}")
 
 
