@@ -1,43 +1,42 @@
 from pathlib import Path
 
-
-def read_afl_showmap_file(file: Path) -> dict[str, int]:
-    """Parse one afl-showmap file; return dict of edge ids to counts."""
-    edges: dict[str, int] = {}
-    for i, line in enumerate(file.read_text().strip().splitlines()):
-        line = line.strip()
-        if not line:
-            continue
-        split = line.split(":")
-        if len(split) != 2:
-            raise ValueError(f"Invalid line {file}:{i}: {line}")
-        id, count = split
-        edges[id] = int(count)
-    return edges
+from differential_coverage.readers import InputFormat, read_trial, resolve_reader
 
 
-def read_approach_dir(path: Path) -> dict[str, set[str]]:
-    """Read all afl-showmap files in a directory; return dict of trial id to dict of edge ids to counts."""
-    trials: dict[str, set[str]] = {}
+def read_approach_dir(
+    path: Path, *, input_format: InputFormat = "auto"
+) -> dict[str, set[str]]:
+    """Read all trial files in a directory; return dict of trial id to edge sets."""
+    files = [file for file in path.iterdir() if file.is_file()]
     for file in path.iterdir():
-        if file.is_file():
-            map = read_afl_showmap_file(file)
-            trials[file.stem] = {e for e in map if map.get(e, 0) > 0}
-        else:
+        if not file.is_file():
             raise ValueError(f"Invalid file: {file}")
-    return trials
+
+    reader = resolve_reader(files, input_format)
+    return {file.stem: read_trial(file, reader) for file in files}
 
 
 def read_campaign_dir(
     path: Path,
+    *,
+    input_format: InputFormat = "auto",
 ) -> dict[str, dict[str, set[str]]]:
-    """Read all approach directories in a campaign directory; return dict of approach name to dict of trial id to dict of edge ids to counts."""
+    """Read all approach directories in a campaign directory."""
     if not path.is_dir():
         raise ValueError(f"Not a directory: {path}")
     campaigns: dict[str, dict[str, set[str]]] = {}
+    campaign_reader: str | None = None
     for approach_dir in path.iterdir():
         if approach_dir.is_dir():
-            approach_data = read_approach_dir(approach_dir)
+            files = [file for file in approach_dir.iterdir() if file.is_file()]
+            reader = resolve_reader(files, input_format)
+            if campaign_reader is None:
+                campaign_reader = reader.name
+            elif reader.name != campaign_reader:
+                raise ValueError(
+                    "Mixed input formats across campaign; use one format for all approaches"
+                )
+            approach_data = {file.stem: read_trial(file, reader) for file in files}
             if len(approach_data) == 0:
                 print(f"Warning: No coverage data in {approach_dir}. Skipping.")
                 continue
