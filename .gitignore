@@ -8,3 +8,11 @@ __pycache__/
 .ruff_cache
 
 .DS_Store
+
+*.profraw
+*.profdata
+*.dSYM
+
+tests/calc/build/
+tests/calc/coverage/
+tests/calc/calc

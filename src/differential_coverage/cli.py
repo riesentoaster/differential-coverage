@@ -12,7 +12,7 @@ from differential_coverage.output import print_relcov_corpus_table, print_scores
 # All subcommands expect this directory layout (one campaign dir, no moving files).
 CAMPAIGN_DIR_HELP = (
     "Campaign directory: one subdirectory per approach, each containing "
-    "afl-showmap coverage files (id:count per line)."
+    "trial coverage files (afl-showmap id:count files or llvm-cov export JSON)."
 )
 
 try:
@@ -37,7 +37,7 @@ def _load_campaign(
 ) -> dict[str, dict[str, set[str]]]:
     """Load a campaign directory and apply any CLI-level filters."""
     root = args.dir.resolve()
-    campaign = read_campaign_dir(root)
+    campaign = read_campaign_dir(root, input_format=args.input_format)
 
     include_patterns = getattr(args, "include_approach", []) or []
     exclude_patterns = getattr(args, "exclude_approach", []) or []
@@ -126,6 +126,15 @@ def build_parser() -> argparse.ArgumentParser:
         version=f"%(prog)s {PKG_VERSION}",
     )
 
+    parser.add_argument(
+        "--input-format",
+        choices=["auto", "afl-showmap", "llvm-cov"],
+        default="auto",
+        help=(
+            "Input format for trial files: auto (default) detects from file "
+            "extensions, afl-showmap for id:count files, llvm-cov for export JSON."
+        ),
+    )
     parser.add_argument(
         "-i",
         "--include-approach",

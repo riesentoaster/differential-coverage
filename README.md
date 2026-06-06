@@ -19,23 +19,69 @@ For more precise definitions, including formulas, look at [DEFINITIONS.md](./DEF
 
 ## How?
 
-`differential-coverage` currently reads `afl-showmap`-style data: files with `<edge_id>: <count>` rows, where `<count>` is only checked to contain a number $\geq 1$. These files are expected to be in the following structure:
+Campaign data lives in one directory per approach, with one file per trial. Two input formats are supported:
+
+### afl-showmap
+
+Files contain `<edge_id>: <count>` rows; only whether count ≥ 1 matters. Edge IDs are opaque strings from the fuzzer bitmap (e.g. `12345`).
 
 ```
 coverage_data
 |-- approach_1
-|   |-- showmap_trial_1.out
-|   |-- showmap_trial_2.out
-|   `-- showmap_trial_3.out
+|   |-- trial_1.out
+|   |-- trial_2.out
+|   `-- trial_3.out
 |-- approach_2
-|   |-- showmap_trial_1.out
-|   |-- showmap_trial_2.out
-|   `-- showmap_trial_3.out
+|   |-- trial_1.out
+|   `-- trial_2.out
+|   `-- trial_3.out
 `-- seeds
-    `-- showmap.out
+    `-- seeds.out
 ```
 
-> If you would like support for other input formats, please raise an issue in the GitHub repository!
+### llvm-cov export JSON
+
+Same layout, with JSON trial files from `llvm-cov export` (LLVM's `-format=text` produces JSON):
+
+```
+coverage_data
+|-- approach_1
+|   |-- trial_1.json
+|   `-- trial_2.json
+`-- seeds
+    `-- seeds.json
+```
+
+Generate each trial file with:
+
+```bash
+llvm-cov export \
+  -instr-profile=default.profdata \
+  -object=./my_binary \
+  -format=text \
+  > trial_1.json
+```
+
+Run once per trial (merge profdata first if a trial replays multiple inputs). Each export is parsed at branch granularity when available, otherwise code-region blocks, otherwise regions. Source paths in edge IDs are reduced to basenames (e.g. `calc.c:18:9-18:17:true`).
+
+#### cov-analysis
+
+For fuzzer campaigns, [cov-analysis](https://github.com/aflplusplus/cov-analysis) can generate trial JSON for you: it replays AFL++, libFuzzer, libafl, or honggfuzz output through an instrumented binary and writes an `llvm-cov` export to `<fuzzer-out>/cov/coverage.json`.
+
+```bash
+cov-analysis build make -j$(nproc)
+cov-analysis -d /path/to/fuzzer-out/ -e "./cov @@"
+```
+
+Copy one `coverage.json` per trial into your campaign directory (same layout as above). The format matches `llvm-cov export -format=text`.
+
+### Edge IDs and mixing formats
+
+**All approaches in one campaign must use the same input format and the same edge ID scheme.** afl-showmap edge IDs (numeric bitmap indices) and llvm-cov edge IDs (source locations) are not comparable — do not mix them in one campaign.
+
+llvm-cov edge IDs use source basenames only, but you still need the same binary/build when generating exports for all trials in a campaign.
+
+Format is detected from file content (`auto`, default). Override with `--input-format` if needed.
 
 ### Installation
 
@@ -53,10 +99,18 @@ pip install differential-coverage[latex]
 Generally, the command line interface follows the following structure:
 
 ```bash
-differential-coverage {relcov,relscore} <your-input-dir>
+differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov}] <campaign-dir>
 ```
 
-There are some options available, e.g. for output as csv or (colored) LaTeX table:
+Examples:
+
+```bash
+differential-coverage relscore ./coverage_data
+differential-coverage --input-format llvm-cov relcov ./coverage_data
+differential-coverage --output csv relscore ./coverage_data
+```
+
+There are more options available, e.g. for output as csv or (colored) LaTeX table:
 
 ```
 differential-coverage --help
