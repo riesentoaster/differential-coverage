@@ -1,10 +1,19 @@
+import warnings
 from pathlib import Path
 
-from differential_coverage.readers import InputFormat, read_trial, resolve_reader
+from differential_coverage.readers import (
+    GranularityArg,
+    InputFormat,
+    read_trial,
+    resolve_reader,
+)
 
 
 def read_approach_dir(
-    path: Path, *, input_format: InputFormat = "auto"
+    path: Path,
+    *,
+    input_format: InputFormat = "auto",
+    granularity: GranularityArg = "auto",
 ) -> dict[str, set[str]]:
     """Read all trial files in a directory; return dict of trial id to edge sets."""
     files = [file for file in path.iterdir() if file.is_file()]
@@ -13,13 +22,16 @@ def read_approach_dir(
             raise ValueError(f"Invalid file: {file}")
 
     reader = resolve_reader(files, input_format)
-    return {file.stem: read_trial(file, reader) for file in files}
+    return {
+        file.stem: read_trial(file, reader, granularity=granularity) for file in files
+    }
 
 
 def read_campaign_dir(
     path: Path,
     *,
     input_format: InputFormat = "auto",
+    granularity: GranularityArg = "auto",
 ) -> dict[str, dict[str, set[str]]]:
     """Read all approach directories in a campaign directory."""
     if not path.is_dir():
@@ -29,6 +41,9 @@ def read_campaign_dir(
     for approach_dir in path.iterdir():
         if approach_dir.is_dir():
             files = [file for file in approach_dir.iterdir() if file.is_file()]
+            if not files:
+                warnings.warn(f"No coverage data in {approach_dir}; skipping approach")
+                continue
             reader = resolve_reader(files, input_format)
             if campaign_reader is None:
                 campaign_reader = reader.name
@@ -36,11 +51,10 @@ def read_campaign_dir(
                 raise ValueError(
                     "Mixed input formats across campaign; use one format for all approaches"
                 )
-            approach_data = {file.stem: read_trial(file, reader) for file in files}
-            if len(approach_data) == 0:
-                print(f"Warning: No coverage data in {approach_dir}. Skipping.")
-                continue
-            campaigns[approach_dir.name] = approach_data
+            campaigns[approach_dir.name] = {
+                file.stem: read_trial(file, reader, granularity=granularity)
+                for file in files
+            }
         else:
             raise ValueError(f"Invalid file: {approach_dir}")
     return campaigns

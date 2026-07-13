@@ -44,6 +44,17 @@ def calc_coverage_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
             **_env_with_llvm(),
             "BUILD": str(root / "build"),
             "COVERAGE": str(coverage),
+            "EXPORTS": str(root / "exports"),
         },
     )
     return coverage
+
+
+@pytest.fixture(scope="session")
+def llvm_exports(calc_coverage_dir: Path) -> dict[str, Path]:
+    root = calc_coverage_dir.parent
+    exports = root / "exports"
+    return {
+        "macro": exports / "macro.json",
+        "summary_only": exports / "summary_only.json",
+    }

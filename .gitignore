@@ -16,3 +16,4 @@ __pycache__/
 tests/calc/build/
 tests/calc/coverage/
 tests/calc/calc
+tests/calc/exports

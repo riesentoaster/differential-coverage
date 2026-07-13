@@ -1,16 +1,31 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 
 ReaderName = Literal["afl-showmap", "llvm-cov"]
 InputFormat = Literal["auto", "afl-showmap", "llvm-cov"]
+Granularity = Literal["branch", "block", "edge"]
+GranularityArg = Literal["auto", "branch", "block", "edge"]
+
+_SUPPORTED: dict[ReaderName, frozenset[Granularity]] = {
+    "afl-showmap": frozenset({"edge"}),
+    "llvm-cov": frozenset({"branch", "block"}),
+}
+_DEFAULT: dict[ReaderName, Granularity] = {
+    "afl-showmap": "edge",
+    "llvm-cov": "branch",
+}
+
+
+class ReadTrial(Protocol):
+    def __call__(self, path: Path, *, granularity: Granularity) -> set[str]: ...
 
 
 @dataclass(frozen=True)
 class TrialReader:
     name: ReaderName
-    read: Callable[[Path], set[str]]
+    read: ReadTrial
     detect: Callable[[Path], bool]
 
 
@@ -47,5 +62,22 @@ def resolve_reader(files: list[Path], input_format: InputFormat) -> TrialReader:
     return get_reader(detected)
 
 
-def read_trial(path: Path, reader: TrialReader) -> set[str]:
-    return reader.read(path)
+def resolve_granularity(reader: ReaderName, granularity: GranularityArg) -> Granularity:
+    if granularity == "auto":
+        return _DEFAULT[reader]
+    if granularity not in _SUPPORTED[reader]:
+        supported = ", ".join(sorted(_SUPPORTED[reader]))
+        raise ValueError(
+            f"{reader} does not support --granularity {granularity}; use: {supported}"
+        )
+    return granularity
+
+
+def read_trial(
+    path: Path,
+    reader: TrialReader,
+    *,
+    granularity: GranularityArg = "auto",
+) -> set[str]:
+    resolved = resolve_granularity(reader.name, granularity)
+    return reader.read(path, granularity=resolved)
