@@ -49,9 +49,14 @@ jobs:
           python-version: "3.13"
       - name: Install LLVM ${{ matrix.llvm }}
         run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh ${{ matrix.llvm }}
+          sudo apt-get update
+          if apt-cache show "clang-${{ matrix.llvm }}" &>/dev/null; then
+            sudo apt-get install -y "clang-${{ matrix.llvm }}" "llvm-${{ matrix.llvm }}"
+          else
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh ${{ matrix.llvm }}
+          fi
           echo "/usr/lib/llvm-${{ matrix.llvm }}/bin" >> "$GITHUB_PATH"
       - name: Run llvm-cov tests
         run: pytest -v
