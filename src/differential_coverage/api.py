@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Collection, Generic, Mapping
 import warnings
 
-from differential_coverage.readers import InputFormat
+from differential_coverage.readers import GranularityArg, InputFormat
 from differential_coverage.fs import read_campaign_dir
 from differential_coverage.approach_data import ApproachData
 from differential_coverage.types import (
@@ -60,9 +60,14 @@ class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
         path: Path,
         *,
         input_format: InputFormat = "auto",
+        granularity: GranularityArg = "auto",
     ) -> "DifferentialCoverage[str, str, str]":
         return DifferentialCoverage[str, str, str](
-            read_campaign_dir(path, input_format=input_format)
+            read_campaign_dir(
+                path,
+                input_format=input_format,
+                granularity=granularity,
+            )
         )
 
     @property

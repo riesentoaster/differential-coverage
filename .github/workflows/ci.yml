@@ -36,6 +36,30 @@ jobs:
       - name: Run tests
         run: pytest
 
+  llvm:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        llvm: [14, 16, 18, 19, 20, 21, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/setup
+        with:
+          python-version: "3.13"
+      - name: Install LLVM ${{ matrix.llvm }}
+        run: |
+          llvm=${{ matrix.llvm }}
+          sudo apt-get update
+          if ! sudo apt-get install -y "clang-$llvm" "llvm-$llvm"; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh "$llvm"
+          fi
+          echo "/usr/lib/llvm-$llvm/bin" >> "$GITHUB_PATH"
+      - name: Run llvm-cov tests
+        run: pytest -v
+
 
   ruff:
     runs-on: ubuntu-latest
@@ -67,7 +91,7 @@ jobs:
   build_for_publish:
     name: Build distribution
     if: github.event_name == 'push'
-    needs: [test, ruff, mypy]
+    needs: [test, ruff, mypy, llvm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -62,7 +62,9 @@ llvm-cov export \
   > trial_1.json
 ```
 
-Run once per trial (merge profdata first if a trial replays multiple inputs). Each export is parsed at branch granularity when available, otherwise code-region blocks, otherwise regions. Source paths in edge IDs are reduced to basenames (e.g. `calc.c:18:9-18:17:true`).
+Run once per trial (merge profdata first if a trial replays multiple inputs). Use `--granularity branch` or `block` for llvm-cov exports; afl-showmap uses `edge` (selected automatically with `--granularity auto`).
+
+**All trials in a campaign must use the same input format, granularity, and consistent source paths (llvm-cov).** If paths differ between machines, re-export with `llvm-cov export -path-equivalence=<build-path>,<local-path>`.
 
 #### cov-analysis
 
@@ -78,8 +80,6 @@ Copy one `coverage.json` per trial into your campaign directory (same layout as 
 ### Edge IDs and mixing formats
 
 **All approaches in one campaign must use the same input format and the same edge ID scheme.** afl-showmap edge IDs (numeric bitmap indices) and llvm-cov edge IDs (source locations) are not comparable — do not mix them in one campaign.
-
-llvm-cov edge IDs use source basenames only, but you still need the same binary/build when generating exports for all trials in a campaign.
 
 Format is detected from file content (`auto`, default). Override with `--input-format` if needed.
 
@@ -99,7 +99,7 @@ pip install differential-coverage[latex]
 Generally, the command line interface follows the following structure:
 
 ```bash
-differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov}] <campaign-dir>
+differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov}] [--granularity {auto,branch,block,edge}] <campaign-dir>
 ```
 
 Examples:

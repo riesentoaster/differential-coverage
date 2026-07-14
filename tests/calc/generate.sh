@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD="${BUILD:-$ROOT/build}"
 COVERAGE="${COVERAGE:-$ROOT/coverage}"
+EXPORTS="${EXPORTS:-$ROOT/exports}"
 
 for llvm_bin in /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin; do
     if [[ -d "$llvm_bin" ]]; then
@@ -23,6 +24,19 @@ mkdir -p "$BUILD" "$COVERAGE"
 
 clang -g -O0 -fprofile-instr-generate -fcoverage-mapping \
     -o "$BUILD/calc" "$ROOT/calc.c"
+
+clang -g -O0 -fprofile-instr-generate -fcoverage-mapping \
+    -o "$BUILD/macro" "$ROOT/macro.c"
+
+macro_build="$BUILD/macro_run"
+mkdir -p "$EXPORTS" "$macro_build"
+LLVM_PROFILE_FILE="$macro_build/run.profraw" "$BUILD/macro"
+llvm-profdata merge -sparse "$macro_build/run.profraw" -o "$macro_build/trial.profdata"
+llvm-cov export \
+    -instr-profile="$macro_build/trial.profdata" \
+    -object="$BUILD/macro" \
+    -format=text \
+    >"$EXPORTS/macro.json"
 
 while IFS= read -r -d '' corpus; do
     approach="$(basename "$(dirname "$corpus")")"
@@ -60,3 +74,13 @@ while IFS= read -r -d '' corpus; do
         -format=text \
         >"$out_dir/$trial.json"
 done < <(find "$ROOT/corpora" -name '*.txt' -print0 | sort -z)
+
+summary_prof="$BUILD/summary_only/trial.profdata"
+mkdir -p "$BUILD/summary_only"
+cp "$BUILD/seeds/t1/trial.profdata" "$summary_prof"
+llvm-cov export \
+    --summary-only \
+    -instr-profile="$summary_prof" \
+    -object="$BUILD/calc" \
+    -format=text \
+    >"$EXPORTS/summary_only.json"

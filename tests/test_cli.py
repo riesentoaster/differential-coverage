@@ -7,7 +7,7 @@ import pytest
 
 from differential_coverage.cli import main
 
-SAMPLE_DIR = (Path(__file__).parent / "sample_coverage").resolve()
+SAMPLE_SHOWMAP_DIR = (Path(__file__).parent / "sample_coverage").resolve()
 
 
 def _run_cli(
@@ -29,9 +29,17 @@ def _run_cli(
     return (code, out.getvalue(), err.getvalue() if capture_stderr else "")
 
 
+def test_cli_relscore_rejects_unsupported_granularity() -> None:
+    code, _, _ = _run_cli(
+        ["--granularity", "branch", "relscore", str(SAMPLE_SHOWMAP_DIR)],
+        capture_stderr=True,
+    )
+    assert code != 0
+
+
 def test_cli_relscore() -> None:
     """CLI relscore prints all approaches sorted by score descending."""
-    code, out, _ = _run_cli(["relscore", str(SAMPLE_DIR)])
+    code, out, _ = _run_cli(["relscore", str(SAMPLE_SHOWMAP_DIR)])
     assert code == 0
     lines = [s.strip() for s in out.strip().splitlines()]
     assert len(lines) == 4  # approach_c, approach_a, approach_b, seeds
@@ -49,7 +57,7 @@ def test_cli_relcov_performance_approach_table() -> None:
     code, out, _ = _run_cli(
         [
             "relcov",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -72,7 +80,7 @@ def test_cli_exclude_approach_relscore() -> None:
             "--exclude-approach",
             "approach_b",
             "relscore",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -94,7 +102,7 @@ def test_cli_exclude_approach_regex(pattern: str) -> None:
             "--exclude-approach",
             pattern,  # regex: matches approach_b and approach_c
             "relscore",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -112,7 +120,7 @@ def test_cli_include_approach_regex() -> None:
             "--include-approach",
             "approach_.*",  # only approach_a, approach_b, approach_c (not seeds)
             "relscore",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -133,7 +141,7 @@ def test_cli_include_then_exclude() -> None:
             "--exclude-approach",
             "approach_b",
             "relscore",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -147,7 +155,7 @@ def test_cli_include_then_exclude() -> None:
 
 def test_cli_csv_relscore() -> None:
     """CLI --output csv with relscore outputs CSV with header approach,score."""
-    code, out, _ = _run_cli(["--output", "csv", "relscore", str(SAMPLE_DIR)])
+    code, out, _ = _run_cli(["--output", "csv", "relscore", str(SAMPLE_SHOWMAP_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
     assert lines[0] == "approach,score"
@@ -158,7 +166,7 @@ def test_cli_csv_relscore() -> None:
 
 def test_cli_csv_relcov_performance_approach_table() -> None:
     """CLI --output csv with relcov (table) outputs CSV with header row."""
-    code, out, _ = _run_cli(["--output", "csv", "relcov", str(SAMPLE_DIR)])
+    code, out, _ = _run_cli(["--output", "csv", "relcov", str(SAMPLE_SHOWMAP_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
     assert "approach" in lines[0]
@@ -168,7 +176,7 @@ def test_cli_csv_relcov_performance_approach_table() -> None:
 
 def test_cli_latex_relcov_performance_approach_table() -> None:
     """CLI --output latex with relcov (table) outputs LaTeX tabular."""
-    code, out, _ = _run_cli(["--output", "latex", "relcov", str(SAMPLE_DIR)])
+    code, out, _ = _run_cli(["--output", "latex", "relcov", str(SAMPLE_SHOWMAP_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
     assert any(line.startswith(r"\begin{tabular}") for line in lines)
@@ -184,7 +192,7 @@ def test_cli_latex_color_relcov_performance_approach_table() -> None:
             "latex",
             "--latex-enable-color",
             "relcov",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -196,7 +204,7 @@ def test_cli_latex_color_relcov_performance_approach_table() -> None:
 
 def test_cli_latex_default_no_rotate_headers() -> None:
     """CLI LaTeX output without --latex-rotate-headers emits unrotated headers."""
-    code, out, _ = _run_cli(["--output", "latex", "relcov", str(SAMPLE_DIR)])
+    code, out, _ = _run_cli(["--output", "latex", "relcov", str(SAMPLE_SHOWMAP_DIR)])
     assert code == 0
     lines = out.strip().splitlines()
     assert any(line.startswith(r"\begin{tabular}") for line in lines)
@@ -212,7 +220,7 @@ def test_cli_latex_rotate_headers_angle() -> None:
             "--latex-rotate-headers",
             "45",
             "relcov",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0
@@ -228,7 +236,7 @@ def test_cli_latex_color_no_cell_colors() -> None:
             "--output",
             "latex",
             "relcov",
-            str(SAMPLE_DIR),
+            str(SAMPLE_SHOWMAP_DIR),
         ]
     )
     assert code == 0

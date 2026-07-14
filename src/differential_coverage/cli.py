@@ -37,7 +37,14 @@ def _load_campaign(
 ) -> dict[str, dict[str, set[str]]]:
     """Load a campaign directory and apply any CLI-level filters."""
     root = args.dir.resolve()
-    campaign = read_campaign_dir(root, input_format=args.input_format)
+    try:
+        campaign = read_campaign_dir(
+            root,
+            input_format=args.input_format,
+            granularity=args.granularity,
+        )
+    except ValueError as e:
+        raise SystemExit(e) from e
 
     include_patterns = getattr(args, "include_approach", []) or []
     exclude_patterns = getattr(args, "exclude_approach", []) or []
@@ -85,10 +92,7 @@ def cmd_relscore(args: argparse.Namespace) -> int:
 
 
 def cmd_relcov_performance_over_approach(args: argparse.Namespace) -> int:
-    try:
-        campaign = _load_campaign(args)
-    except ValueError as e:
-        raise SystemExit(e) from e
+    campaign = _load_campaign(args)
 
     dc = DifferentialCoverage(campaign)
     output = args.output
@@ -133,6 +137,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Input format for trial files: auto (default) detects from file "
             "extensions, afl-showmap for id:count files, llvm-cov for export JSON."
+        ),
+    )
+    parser.add_argument(
+        "--granularity",
+        choices=["auto", "branch", "block", "edge"],
+        default="auto",
+        help=(
+            "Coverage granularity: auto (default) uses edge for afl-showmap and "
+            "branch for llvm-cov; branch/block for llvm-cov exports; edge for "
+            "afl-showmap bitmap tuples."
         ),
     )
     parser.add_argument(

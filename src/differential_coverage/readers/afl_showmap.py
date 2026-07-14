@@ -1,9 +1,15 @@
 from pathlib import Path
 
-from differential_coverage.readers.registry import TrialReader, register_reader
+from differential_coverage.readers.registry import (
+    Granularity,
+    TrialReader,
+    register_reader,
+)
 
 
-def read(path: Path) -> set[str]:
+def read(path: Path, *, granularity: Granularity) -> set[str]:
+    if granularity != "edge":
+        raise ValueError("afl-showmap only supports --granularity edge")
     edges: set[str] = set()
     for i, line in enumerate(path.read_text().strip().splitlines()):
         line = line.strip()
