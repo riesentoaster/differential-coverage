@@ -34,13 +34,14 @@ def test_read_llvm_cov_branch_uses_function_scope(calc_coverage_dir: Path) -> No
     export = _calc_export(calc_coverage_dir, "approach_a", "t1.json")
     edges = llvm_cov.read(export, granularity="branch")
     assert edges
-    assert all(edge.startswith("fn:") and "@fid" in edge for edge in edges)
+    assert all(edge.startswith("fn:") and "@" in edge for edge in edges)
+    assert not any("@fid" in edge for edge in edges)
 
 
 def test_read_llvm_cov_branch_requires_branch_data(
     llvm_exports: dict[str, Path],
 ) -> None:
-    with pytest.raises(ValueError, match="No branch data"):
+    with pytest.raises(ValueError, match="No covered edges"):
         llvm_cov.read(llvm_exports["summary_only"], granularity="branch")
 
 
@@ -59,24 +60,80 @@ def test_read_llvm_cov_expansion_branches(llvm_exports: dict[str, Path]) -> None
         pytest.skip("macro-expansion branch data not present in llvm-cov export")
     edges = llvm_cov.read(export, granularity="branch")
     assert edges
-    assert all(edge.startswith("fn:main@fid") for edge in edges)
+    assert all(edge.startswith("fn:main@") for edge in edges)
     assert any(":true" in edge or ":false" in edge for edge in edges)
 
 
 def test_read_llvm_cov_expansion_blocks(llvm_exports: dict[str, Path]) -> None:
     edges = llvm_cov.read(llvm_exports["macro"], granularity="block")
     assert len(edges) == 6
-    assert all(edge.startswith("fn:main@fid") for edge in edges)
+    assert all(edge.startswith("fn:main@") for edge in edges)
 
 
-def test_block_edges_uses_scoped_file_id() -> None:
-    edges = llvm_cov._block_edges("fn:main", [[1, 1, 1, 5, 1, 24, 0, 0]])
-    assert edges == {"fn:main@fid24:1:1-1:5"}
+def _write_export(path: Path, functions: list[dict[str, object]]) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "type": "llvm.coverage.json.export",
+                "data": [{"functions": functions}],
+            }
+        )
+    )
 
 
-def test_branch_edges_uses_scoped_file_id() -> None:
-    edges = llvm_cov._branch_edges("fn:main", [[5, 13, 5, 17, 0, 1, 1, 0, 4]])
-    assert edges == {"fn:main@fid1:5:13-5:17:false"}
+def test_block_edges_uses_source_path(tmp_path: Path) -> None:
+    export = tmp_path / "t.json"
+    _write_export(
+        export,
+        [
+            {
+                "name": "main",
+                "filenames": [f"/src/file{i}.c" for i in range(25)],
+                "regions": [[1, 1, 1, 5, 1, 24, 0, 0]],
+            }
+        ],
+    )
+    edges = llvm_cov.read(export, granularity="block")
+    assert edges == {"fn:main@/src/file24.c:1:1-1:5"}
+
+
+def test_branch_edges_uses_source_path(tmp_path: Path) -> None:
+    export = tmp_path / "t.json"
+    _write_export(
+        export,
+        [
+            {
+                "name": "main",
+                "filenames": ["/src/main.c", "/src/other.c"],
+                "branches": [[5, 13, 5, 17, 0, 1, 1, 0, 4]],
+            }
+        ],
+    )
+    edges = llvm_cov.read(export, granularity="branch")
+    assert edges == {"fn:main@/src/other.c:5:13-5:17:false"}
+
+
+def test_read_raises_on_missing_filenames(tmp_path: Path) -> None:
+    export = tmp_path / "t.json"
+    _write_export(export, [{"name": "main", "regions": [[1, 1, 1, 5, 1, 0, 0, 0]]}])
+    with pytest.raises(KeyError):
+        llvm_cov.read(export, granularity="block")
+
+
+def test_read_raises_on_invalid_file_id(tmp_path: Path) -> None:
+    export = tmp_path / "t.json"
+    _write_export(
+        export,
+        [
+            {
+                "name": "main",
+                "filenames": ["/a.c", "/b.c"],
+                "regions": [[1, 1, 1, 5, 1, 3, 0, 0]],
+            }
+        ],
+    )
+    with pytest.raises(IndexError):
+        llvm_cov.read(export, granularity="block")
 
 
 def test_read_approach_dir_auto_detect(calc_coverage_dir: Path) -> None:

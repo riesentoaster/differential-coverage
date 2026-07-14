@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Any
 
 from differential_coverage.readers.registry import (
     Granularity,
@@ -8,53 +7,28 @@ from differential_coverage.readers.registry import (
     register_reader,
 )
 
-# llvm-cov region Kind field (region[7]); see LLVM CoverageMapping.h RegionKind.
+# llvm-cov CountedRegion JSON arrays; see renderRegion/renderBranch in
+# llvm/tools/llvm-cov/CoverageExporterJson.cpp.
+_LINE_START = 0
+_COLUMN_START = 1
+_LINE_END = 2
+_COLUMN_END = 3
+_EXEC_COUNT = 4
+_REGION_FILE_ID = 5
+_REGION_KIND = 7
+_BRANCH_FALSE_COUNT = 5
+_BRANCH_FILE_ID = 6
+
+# RegionKind::CodeRegion in include/llvm/ProfileData/CoverageMapping.h
 _CODE_REGION = 0
 _LLVM_EXPORT_MARKER = b"llvm.coverage.json.export"
 
 
-def _edge_id(scope: str, file_id: int, record: list[int]) -> str:
-    return f"{scope}@fid{file_id}:{record[0]}:{record[1]}-{record[2]}:{record[3]}"
-
-
-def _branch_edges(scope: str, branches: list[list[int]]) -> set[str]:
-    edges: set[str] = set()
-    for branch in branches:
-        region_id = _edge_id(scope, branch[6], branch)
-        if branch[4] > 0:
-            edges.add(f"{region_id}:true")
-        if branch[5] > 0:
-            edges.add(f"{region_id}:false")
-    return edges
-
-
-def _block_edges(scope: str, regions: list[list[int]]) -> set[str]:
-    return {
-        _edge_id(scope, region[5], region)
-        for region in regions
-        if region[4] > 0 and region[7] == _CODE_REGION
-    }
-
-
-def _parse_export(export: dict[str, Any], *, granularity: Granularity) -> set[str]:
-    edges: set[str] = set()
-    # functions[] pairs branches/regions with filenames[] for FileID lookup and
-    # includes macro-expanded code; files[]/expansions[] are filtered views.
-    for function in export.get("functions", []):
-        name = function.get("name", "<unknown>")
-        scope = f"fn:{name}"
-        if granularity == "branch":
-            edges.update(_branch_edges(scope, function.get("branches", [])))
-        else:
-            edges.update(_block_edges(scope, function.get("regions", [])))
-    return edges
-
-
-def _export_has_branches(data: dict[str, Any]) -> bool:
-    return any(
-        function.get("branches")
-        for export in data.get("data", [])
-        for function in export.get("functions", [])
+def _edge_id(scope: str, filenames: list[str], file_id: int, record: list[int]) -> str:
+    return (
+        f"{scope}@{filenames[file_id]}:"
+        f"{record[_LINE_START]}:{record[_COLUMN_START]}-"
+        f"{record[_LINE_END]}:{record[_COLUMN_END]}"
     )
 
 
@@ -62,14 +36,25 @@ def read(path: Path, *, granularity: Granularity) -> set[str]:
     if granularity == "edge":
         raise ValueError("llvm-cov does not support --granularity edge")
     data = json.loads(path.read_text())
-    if granularity == "branch" and not _export_has_branches(data):
-        raise ValueError(
-            f"No branch data in {path}; use --granularity block or export "
-            "with LLVM 12+ and -fcoverage-mapping"
-        )
     edges: set[str] = set()
     for export in data.get("data", []):
-        edges.update(_parse_export(export, granularity=granularity))
+        for function in export.get("functions", []):
+            scope = f"fn:{function['name']}"
+            filenames = function["filenames"]
+
+            if granularity == "branch":
+                for branch in function.get("branches", []):
+                    base = _edge_id(scope, filenames, branch[_BRANCH_FILE_ID], branch)
+                    if branch[_EXEC_COUNT] > 0:
+                        edges.add(f"{base}:true")
+                    if branch[_BRANCH_FALSE_COUNT] > 0:
+                        edges.add(f"{base}:false")
+            else:
+                for region in function.get("regions", []):
+                    if region[_EXEC_COUNT] > 0 and region[_REGION_KIND] == _CODE_REGION:
+                        edges.add(
+                            _edge_id(scope, filenames, region[_REGION_FILE_ID], region)
+                        )
     if not edges:
         raise ValueError(f"No covered edges in {path}")
     return edges
