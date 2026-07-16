@@ -42,6 +42,7 @@ def _load_campaign(
             root,
             input_format=args.input_format,
             granularity=args.granularity,
+            max_workers=args.max_workers,
         )
     except ValueError as e:
         raise SystemExit(e) from e
@@ -138,6 +139,15 @@ def build_parser() -> argparse.ArgumentParser:
             "Input format for trial files: auto (default) detects from file "
             "extensions, afl-showmap for id:count files, llvm-cov for export JSON."
         ),
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        dest="max_workers",
+        type=int,
+        default=None,
+        metavar="N",
+        help=("Maximum number of parallel workers (default: auto)."),
     )
     parser.add_argument(
         "--granularity",

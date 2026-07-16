@@ -61,12 +61,14 @@ class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
         *,
         input_format: InputFormat = "auto",
         granularity: GranularityArg = "auto",
+        max_workers: int | None = None,
     ) -> "DifferentialCoverage[str, str, str]":
         return DifferentialCoverage[str, str, str](
             read_campaign_dir(
                 path,
                 input_format=input_format,
                 granularity=granularity,
+                max_workers=max_workers,
             )
         )
 
