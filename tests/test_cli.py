@@ -29,6 +29,37 @@ def _run_cli(
     return (code, out.getvalue(), err.getvalue() if capture_stderr else "")
 
 
+def test_cli_jobs_passed_to_read_campaign_dir(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, int | None] = {}
+
+    def fake_read_campaign_dir(
+        path: Path,
+        *,
+        input_format: str = "auto",
+        granularity: str = "auto",
+        max_workers: int | None = None,
+    ) -> dict[str, dict[str, set[str]]]:
+        seen["max_workers"] = max_workers
+        return {
+            "approach_a": {"t1": {"e1"}},
+            "approach_b": {"t1": {"e1"}},
+        }
+
+    monkeypatch.setattr(
+        "differential_coverage.cli.read_campaign_dir", fake_read_campaign_dir
+    )
+    code, _, _ = _run_cli(["-j", "4", "relscore", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    assert seen["max_workers"] == 4
+
+
+def test_cli_jobs_rejects_zero() -> None:
+    code, _, _ = _run_cli(
+        ["-j", "0", "relscore", str(SAMPLE_SHOWMAP_DIR)], capture_stderr=True
+    )
+    assert code != 0
+
+
 def test_cli_relscore_rejects_unsupported_granularity() -> None:
     code, _, _ = _run_cli(
         ["--granularity", "branch", "relscore", str(SAMPLE_SHOWMAP_DIR)],
