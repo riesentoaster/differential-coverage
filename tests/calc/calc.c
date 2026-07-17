@@ -1,5 +1,5 @@
+#include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 static int add(int a, int b) { return a + b; }
 
@@ -14,33 +14,45 @@ static int div_op(int a, int b) {
     return a / b;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 4) {
-        return 1;
-    }
-
-    char op = argv[1][0];
-    int a = atoi(argv[2]);
-    int b = atoi(argv[3]);
-    int result = 0;
-
+static int run_op(char op, int a, int b) {
     switch (op) {
     case 'a':
-        result = add(a, b);
-        break;
+        return add(a, b);
     case 's':
-        result = sub(a, b);
-        break;
+        return sub(a, b);
     case 'm':
-        result = mul(a, b);
-        break;
+        return mul(a, b);
     case 'd':
-        result = div_op(a, b);
-        break;
+        return div_op(a, b);
     default:
-        return 2;
+        return -1;
     }
+}
 
-    printf("%d\n", result);
+#ifdef __cplusplus
+extern "C"
+#endif
+int LLVMFuzzerTestOneInput(const unsigned char *data, size_t size) {
+    FILE *in = fmemopen((void *)data, size, "r");
+    if (!in) {
+        return 0;
+    }
+    char op = 0;
+    int a = 0;
+    int b = 0;
+    int matched = fscanf(in, " %c %d %d", &op, &a, &b);
+    fclose(in);
+    if (matched != 3) {
+        return 0;
+    }
+    (void)run_op(op, a, b);
     return 0;
 }
+
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+int main(void) {
+    unsigned char buf[64];
+    LLVMFuzzerTestOneInput(buf, fread(buf, 1, sizeof(buf), stdin));
+    return 0;
+}
+#endif

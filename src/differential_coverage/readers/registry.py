@@ -3,18 +3,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-ReaderName = Literal["afl-showmap", "llvm-cov"]
-InputFormat = Literal["auto", "afl-showmap", "llvm-cov"]
+ReaderName = Literal["afl-showmap", "llvm-cov", "libfuzzer-merge"]
+InputFormat = Literal["auto", "afl-showmap", "llvm-cov", "libfuzzer-merge"]
 Granularity = Literal["branch", "block", "edge"]
 GranularityArg = Literal["auto", "branch", "block", "edge"]
 
 _SUPPORTED: dict[ReaderName, frozenset[Granularity]] = {
     "afl-showmap": frozenset({"edge"}),
     "llvm-cov": frozenset({"branch", "block"}),
+    "libfuzzer-merge": frozenset({"edge"}),
 }
 _DEFAULT: dict[ReaderName, Granularity] = {
     "afl-showmap": "edge",
     "llvm-cov": "branch",
+    "libfuzzer-merge": "edge",
 }
 
 

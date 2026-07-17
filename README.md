@@ -19,7 +19,11 @@ For more precise definitions, including formulas, look at [DEFINITIONS.md](./DEF
 
 ## How?
 
-Campaign data lives in one directory per approach, with one file per trial. Two input formats are supported:
+Campaign data lives in one directory per approach, with one file per trial. Three input formats are supported.
+
+**All approaches in one campaign must use the same input format and the same edge ID scheme.** afl-showmap edge IDs (numeric bitmap indices), libFuzzer merge COV indices (PC-table indices), and llvm-cov edge IDs (source locations) are not comparable — do not mix them in one campaign. Format is detected from file content (`auto`, default). Override with `--input-format` if needed.
+
+For **afl-showmap** and **libfuzzer-merge**, edge IDs are opaque indices into the instrumented binary, so every trial must use the **same binary** (same build/instrumentation). **llvm-cov** uses source locations instead, so the binary may differ as long as source paths are consistent across exports (I think™).
 
 ### afl-showmap
 
@@ -77,11 +81,28 @@ cov-analysis -d /path/to/fuzzer-out/ -e "./cov @@"
 
 Copy one `coverage.json` per trial into your campaign directory (same layout as above). The format matches `llvm-cov export -format=text`.
 
-### Edge IDs and mixing formats
+### libFuzzer merge control files
 
-**All approaches in one campaign must use the same input format and the same edge ID scheme.** afl-showmap edge IDs (numeric bitmap indices) and llvm-cov edge IDs (source locations) are not comparable — do not mix them in one campaign.
+Same layout, with merge control files from libFuzzer's `-merge=1` mode:
 
-Format is detected from file content (`auto`, default). Override with `--input-format` if needed.
+```
+coverage_data
+|-- approach_1
+|   |-- trial_1.merge
+|   `-- trial_2.merge
+`-- seeds
+    `-- seeds.merge
+```
+
+Generate each trial file by merging a seeds corpus with trial inputs and keeping the control file:
+
+```bash
+empty=$(mktemp -d)
+./my_fuzzer -merge=1 -merge_control_file=trial_1.merge "$empty" CORPUS_DIR
+rmdir "$empty"
+```
+
+Use an empty first corpus so every input is recorded. The reader unions all `COV` lines (PC-table indices; `--granularity edge`). Same binary across trials; LLVM 10+.
 
 ### Installation
 
@@ -99,7 +120,7 @@ pip install differential-coverage[latex]
 Generally, the command line interface follows the following structure:
 
 ```bash
-differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov}] [--granularity {auto,branch,block,edge}] <campaign-dir>
+differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov,libfuzzer-merge}] [--granularity {auto,branch,block,edge}] <campaign-dir>
 ```
 
 Examples:

@@ -12,7 +12,8 @@ from differential_coverage.output import print_relcov_corpus_table, print_scores
 # All subcommands expect this directory layout (one campaign dir, no moving files).
 CAMPAIGN_DIR_HELP = (
     "Campaign directory: one subdirectory per approach, each containing "
-    "trial coverage files (afl-showmap id:count files or llvm-cov export JSON)."
+    "trial coverage files (afl-showmap id:count files, llvm-cov export JSON, "
+    "or libFuzzer merge control files)."
 )
 
 try:
@@ -133,11 +134,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--input-format",
-        choices=["auto", "afl-showmap", "llvm-cov"],
+        choices=["auto", "afl-showmap", "llvm-cov", "libfuzzer-merge"],
         default="auto",
         help=(
             "Input format for trial files: auto (default) detects from file "
-            "extensions, afl-showmap for id:count files, llvm-cov for export JSON."
+            "content; afl-showmap for id:count files; llvm-cov for export JSON; "
+            "libfuzzer-merge for -merge=1 control files."
         ),
     )
     parser.add_argument(
@@ -155,8 +157,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         help=(
             "Coverage granularity: auto (default) uses edge for afl-showmap and "
-            "branch for llvm-cov; branch/block for llvm-cov exports; edge for "
-            "afl-showmap bitmap tuples."
+            "libfuzzer-merge, branch for llvm-cov; branch/block for llvm-cov "
+            "exports; edge for afl-showmap bitmap tuples and libFuzzer COV lines."
         ),
     )
     parser.add_argument(

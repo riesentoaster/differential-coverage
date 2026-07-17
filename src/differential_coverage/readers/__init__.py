@@ -1,4 +1,4 @@
-from differential_coverage.readers import afl_showmap, llvm_cov
+from differential_coverage.readers import afl_showmap, libfuzzer_merge, llvm_cov
 from differential_coverage.readers.registry import (
     Granularity,
     GranularityArg,
@@ -15,4 +15,4 @@ __all__ = [
     "resolve_reader",
 ]
 
-_ = (afl_showmap, llvm_cov)
+_ = (afl_showmap, libfuzzer_merge, llvm_cov)

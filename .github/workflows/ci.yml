@@ -57,7 +57,7 @@ jobs:
             sudo ./llvm.sh "$llvm"
           fi
           echo "/usr/lib/llvm-$llvm/bin" >> "$GITHUB_PATH"
-      - name: Run llvm-cov tests
+      - name: Run LLVM-dependent tests
         run: pytest -v
 
 
