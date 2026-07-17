@@ -31,29 +31,39 @@ def _llvm_available() -> bool:
 
 
 @pytest.fixture(scope="session")
-def calc_coverage_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def calc_build_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     if sys.platform == "win32" or not _llvm_available():
         pytest.skip("requires clang/llvm on a Unix-like OS")
 
     root = tmp_path_factory.mktemp("calc")
-    coverage = root / "coverage"
     subprocess.run(
         ["bash", str(CALC_DIR / "generate.sh")],
         check=True,
+        cwd=str(CALC_DIR),
         env={
             **_env_with_llvm(),
             "BUILD": str(root / "build"),
-            "COVERAGE": str(coverage),
+            "COVERAGE": str(root / "coverage"),
+            "MERGE_COVERAGE": str(root / "merge_coverage"),
             "EXPORTS": str(root / "exports"),
         },
     )
-    return coverage
+    return root
 
 
 @pytest.fixture(scope="session")
-def llvm_exports(calc_coverage_dir: Path) -> dict[str, Path]:
-    root = calc_coverage_dir.parent
-    exports = root / "exports"
+def calc_coverage_dir(calc_build_dir: Path) -> Path:
+    return calc_build_dir / "coverage"
+
+
+@pytest.fixture(scope="session")
+def calc_merge_dir(calc_build_dir: Path) -> Path:
+    return calc_build_dir / "merge_coverage"
+
+
+@pytest.fixture(scope="session")
+def llvm_exports(calc_build_dir: Path) -> dict[str, Path]:
+    exports = calc_build_dir / "exports"
     return {
         "macro": exports / "macro.json",
         "summary_only": exports / "summary_only.json",

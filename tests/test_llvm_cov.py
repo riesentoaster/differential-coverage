@@ -30,6 +30,52 @@ def _calc_export(calc_coverage_dir: Path, *parts: str) -> Path:
     return calc_coverage_dir.joinpath(*parts)
 
 
+def _covered_code_region_keys(export: Path) -> list[str]:
+    """Covered CodeRegion location keys (may include duplicates)."""
+    data = json.loads(export.read_text())
+    keys: list[str] = []
+    for item in data.get("data", []):
+        for function in item.get("functions", []):
+            filenames = function["filenames"]
+            for region in function.get("regions", []):
+                # CountedRegion: exec=4, file_id=5, kind=7; CodeRegion kind=0
+                if region[4] <= 0 or region[7] != 0:
+                    continue
+                file_id = region[5]
+                keys.append(
+                    f"fn:{function['name']}@{filenames[file_id]}:"
+                    f"{region[0]}:{region[1]}-{region[2]}:{region[3]}"
+                )
+    return keys
+
+
+def test_read_cov_matches_llvm_cov_summary(
+    calc_build_dir: Path, calc_coverage_dir: Path
+) -> None:
+    summaries = calc_build_dir / "build" / "llvm_summaries"
+    for export in sorted(calc_coverage_dir.rglob("*.json")):
+        rel = export.relative_to(calc_coverage_dir)
+        summary_file = summaries / rel.parent / f"{export.stem}.json"
+        assert summary_file.is_file(), f"missing llvm-cov summary for {export}"
+        totals = json.loads(summary_file.read_text())["data"][0]["totals"]
+        branch_edges = llvm_cov.read(export, granularity="branch")
+        block_edges = llvm_cov.read(export, granularity="block")
+        assert len(branch_edges) == totals["branches"]["covered"], (
+            f"{rel} branch: reader found {len(branch_edges)}, "
+            f"llvm-cov reported {totals['branches']['covered']}"
+        )
+        # Summary counts CodeRegion hits with multiplicity; the reader dedupes
+        # by source location (same as differential-coverage edge identity).
+        region_keys = _covered_code_region_keys(export)
+        assert len(region_keys) == totals["regions"]["covered"], (
+            f"{rel} regions: export has {len(region_keys)} covered CodeRegions, "
+            f"llvm-cov reported {totals['regions']['covered']}"
+        )
+        assert block_edges == set(region_keys), (
+            f"{rel} block: reader set does not match unique covered CodeRegions"
+        )
+
+
 def test_read_llvm_cov_branch_uses_function_scope(calc_coverage_dir: Path) -> None:
     export = _calc_export(calc_coverage_dir, "approach_a", "t1.json")
     edges = llvm_cov.read(export, granularity="branch")
