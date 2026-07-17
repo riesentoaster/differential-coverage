@@ -68,6 +68,8 @@ llvm-cov export \
 
 Run once per trial (merge profdata first if a trial replays multiple inputs). Use `--granularity branch` or `block` for llvm-cov exports; afl-showmap uses `edge` (selected automatically with `--granularity auto`).
 
+On macOS, use Homebrew LLVM rather than Apple Clang: `brew install llvm`, then either add `$(brew --prefix llvm)/bin` to your `PATH` or call tools by full path (e.g. `$(brew --prefix llvm)/bin/clang`). Built-in `clang` _may_ work, but is untested.
+
 **All trials in a campaign must use the same input format, granularity, and consistent source paths (llvm-cov).** If paths differ between machines, re-export with `llvm-cov export -path-equivalence=<build-path>,<local-path>`.
 
 #### cov-analysis
