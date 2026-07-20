@@ -30,12 +30,22 @@ class _PrinterIO:
         return len(s)
 
 
+# Default decimal places for numeric output.
+_DEFAULT_DIGITS = 3
+
+
+def _format_float(value: float, digits: int) -> str:
+    """Format a float with a fixed number of digits after the decimal point."""
+    return f"{value:.{digits}f}"
+
+
 def print_scores(
     scores: Mapping[ApproachId, float],
     *,
     output: OutputFormat = "stdout",
     colormap: str = "viridis",
     latex_enable_color: bool = False,
+    digits: int = _DEFAULT_DIGITS,
     printer: Callable[[str], None] = print,
 ) -> None:
     """Print one score per approach, in the requested output format."""
@@ -43,14 +53,15 @@ def print_scores(
     performance_sorted = sorted(name_sorted, key=lambda x: x[1], reverse=True)
 
     if output == "stdout":
-        _print_scores_plain(performance_sorted, printer=printer)
+        _print_scores_plain(performance_sorted, digits=digits, printer=printer)
     elif output == "csv":
-        _print_scores_csv(performance_sorted, printer=printer)
+        _print_scores_csv(performance_sorted, digits=digits, printer=printer)
     elif output == "latex":
         _print_scores_latex(
             performance_sorted,
             enable_color=latex_enable_color,
             colormap=colormap,
+            digits=digits,
             printer=printer,
         )
     else:
@@ -60,21 +71,23 @@ def print_scores(
 def _print_scores_plain(
     performance_sorted: Sequence[tuple[ApproachId, float]],
     *,
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     for approach, score in performance_sorted:
-        printer(f"{approach}: {score:.2f}")
+        printer(f"{approach}: {_format_float(score, digits)}")
 
 
 def _print_scores_csv(
     performance_sorted: Sequence[tuple[ApproachId, float]],
     *,
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     writer = csv.writer(_PrinterIO(printer))
     writer.writerow(("approach", "score"))
     for approach, score in performance_sorted:
-        writer.writerow((approach, f"{score:.2f}"))
+        writer.writerow((approach, _format_float(score, digits)))
 
 
 def _norm_minmax(values: Sequence[float]) -> tuple[float, float]:
@@ -96,6 +109,7 @@ def _print_scores_latex(
     *,
     enable_color: bool = False,
     colormap: str = "viridis",
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     """LaTeX table (optionally with score cells colored by value)."""
@@ -110,12 +124,13 @@ def _print_scores_latex(
         values = [s for _, s in performance_sorted]
         min_v, max_v = _norm_minmax(values)
     for approach, score in performance_sorted:
+        formatted = _format_float(score, digits)
         if enable_color:
             n = _norm_value(score, min_v, max_v)
             hex_color = _colormap_light_hex(n, colormap=colormap)
-            printer(rf"{approach} & \cellcolor[HTML]{{{hex_color}}}{{{score:.2f}}} \\")
+            printer(rf"{approach} & \cellcolor[HTML]{{{hex_color}}}{{{formatted}}} \\")
         else:
-            printer(f"{approach} & {score:.2f} \\\\")
+            printer(f"{approach} & {formatted} \\\\")
     printer(r"\end{tabular}")
 
 
@@ -127,6 +142,7 @@ def print_relcov_corpus_table(
     colormap: str = "viridis",
     latex_rotate_headers: Optional[float] = None,
     latex_enable_color: bool = False,
+    digits: int = _DEFAULT_DIGITS,
     printer: Callable[[str], None] = print,
 ) -> None:
     """Print a table of relcov performance: rows = approaches, columns = corpus approaches."""
@@ -138,12 +154,14 @@ def print_relcov_corpus_table(
         _print_relcov_corpus_table_plain(
             corpus_approaches,
             table,
+            digits=digits,
             printer=printer,
         )
     elif output == "csv":
         _print_relcov_corpus_table_csv(
             corpus_approaches,
             table,
+            digits=digits,
             printer=printer,
         )
     elif output == "latex":
@@ -153,6 +171,7 @@ def print_relcov_corpus_table(
             rotate_headers=latex_rotate_headers,
             enable_color=latex_enable_color,
             colormap=colormap,
+            digits=digits,
             printer=printer,
         )
     else:
@@ -163,6 +182,7 @@ def _print_relcov_corpus_table_plain(
     corpus_approaches: Sequence[ApproachId],
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
     *,
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     row_labels = sorted(table.keys())
@@ -171,7 +191,8 @@ def _print_relcov_corpus_table_plain(
         (len(str(c)) for c in col_labels + ["approach"]),
         default=7,
     )
-    num_width = 10  # e.g. " 1.00"
+    # Width for aligned numeric columns: sign + integer digit + '.' + fraction + padding.
+    num_width = max(10, digits + 4)
     header = "approach".ljust(col_width)
     for c in col_labels:
         header += str(c).rjust(num_width)
@@ -181,7 +202,7 @@ def _print_relcov_corpus_table_plain(
         for c in col_labels:
             val = table[row].get(c)
             if val is not None:
-                line += f"{val:>{num_width}.5f}"
+                line += f"{val:>{num_width}.{digits}f}"
             else:
                 line += " " * num_width
         printer(line)
@@ -191,6 +212,7 @@ def _print_relcov_corpus_table_csv(
     corpus_approaches: Sequence[ApproachId],
     table: Mapping[ApproachId, Mapping[ApproachId, float]],
     *,
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     row_labels = sorted(table.keys())
@@ -201,7 +223,7 @@ def _print_relcov_corpus_table_csv(
         cells: list[str] = [str(row)]
         for c in col_labels:
             val = table[row].get(c)
-            cells.append(f"{val:.3f}" if val is not None else "")
+            cells.append(_format_float(val, digits) if val is not None else "")
         writer.writerow(cells)
 
 
@@ -255,6 +277,7 @@ def _print_relcov_corpus_table_latex(
     rotate_headers: Optional[float] = None,
     enable_color: bool = False,
     colormap: str = "viridis",
+    digits: int,
     printer: Callable[[str], None],
 ) -> None:
     try:
@@ -288,9 +311,11 @@ def _print_relcov_corpus_table_latex(
             elif enable_color:
                 n = _norm_value(val, min_v, max_v)
                 hex_color = _colormap_light_hex(n, colormap=colormap)
-                cells.append(rf"\cellcolor[HTML]{{{hex_color}}}{{{val:.3f}}}")
+                cells.append(
+                    rf"\cellcolor[HTML]{{{hex_color}}}{{{_format_float(val, digits)}}}"
+                )
             else:
-                cells.append(f"{val:.3f}")
+                cells.append(_format_float(val, digits))
         printer("\t" + " & ".join(cells) + r" \\")
     printer(r"\end{tabular}")
 

@@ -275,3 +275,15 @@ def test_cli_latex_color_no_cell_colors() -> None:
     assert any(line.startswith(r"\begin{tabular}") for line in lines)
     # Table should not contain any colored cells
     assert not any(r"\cellcolor" in line for line in lines)
+
+
+def test_cli_digits_relscore() -> None:
+    """CLI --digits controls decimal places in relscore output."""
+    code, out, _ = _run_cli(["--digits", "4", "relscore", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    lines = [s.strip() for s in out.strip().splitlines()]
+    # Each score should have exactly 4 digits after the decimal point
+    for line in lines:
+        score = line.split(":", 1)[1].strip()
+        assert "." in score
+        assert len(score.split(".", 1)[1]) == 4

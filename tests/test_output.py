@@ -75,8 +75,8 @@ def test_print_scores_uses_printer_stdout() -> None:
 
     # Scores should be sorted by value descending, then by name
     joined = "\n".join(captured)
-    assert "a: 1.00" in joined
-    assert "b: 0.10" in joined
+    assert "a: 1.000" in joined
+    assert "b: 0.100" in joined
     # Ensure our custom printer was used (no direct writes to sys.stdout here)
     assert joined.count("\n") >= 0
 
@@ -97,3 +97,30 @@ def test_print_scores_uses_printer_csv() -> None:
     # Order should be by score descending
     assert rows[1][0] == "a"
     assert rows[2][0] == "b"
+
+
+def test_print_scores_respects_digits() -> None:
+    """print_scores formats scores with the requested number of digits."""
+    scores = {"a": 1.0 / 3.0}
+    captured, printer = _capture_printer()
+
+    print_scores(scores, output="stdout", digits=4, printer=printer)
+
+    assert captured == ["a: 0.3333"]
+
+
+def test_relcov_table_respects_digits_csv() -> None:
+    """Relcov CSV cells use the requested digit precision."""
+    captured, printer = _capture_printer()
+    print_relcov_corpus_table(
+        ["a"],
+        {"a": {"a": 1.0 / 3.0}},
+        output="csv",
+        digits=4,
+        printer=printer,
+    )
+
+    csv_text = "\n".join(captured)
+    reader = csv.reader(io.StringIO(csv_text))
+    rows = list(reader)
+    assert rows[1][1] == "0.3333"
