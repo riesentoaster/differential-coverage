@@ -87,8 +87,9 @@ def cmd_relscore(args: argparse.Namespace) -> int:
     print_scores(
         scores,
         output=args.output,
-        colormap=getattr(args, "colormap", "viridis"),
-        latex_enable_color=getattr(args, "latex_enable_color", False),
+        colormap=args.colormap,
+        latex_enable_color=args.latex_enable_color,
+        digits=args.digits,
     )
     return 0
 
@@ -97,11 +98,6 @@ def cmd_relcov_performance_over_approach(args: argparse.Namespace) -> int:
     campaign = _load_campaign(args)
 
     dc = DifferentialCoverage(campaign)
-    output = args.output
-    colormap = getattr(args, "colormap", "viridis")
-    latex_rotate_headers = getattr(args, "latex_rotate_headers", None)
-    latex_enable_color = getattr(args, "latex_enable_color", False)
-
     ref_approaches = list(dc.approaches.keys())
     table = {
         f: {ref: dc.approaches[f].relcov(dc.approaches[ref]) for ref in ref_approaches}
@@ -110,10 +106,11 @@ def cmd_relcov_performance_over_approach(args: argparse.Namespace) -> int:
     print_relcov_corpus_table(
         ref_approaches,
         table,
-        output=output,
-        colormap=colormap,
-        latex_rotate_headers=latex_rotate_headers,
-        latex_enable_color=latex_enable_color,
+        output=args.output,
+        colormap=args.colormap,
+        latex_rotate_headers=args.latex_rotate_headers,
+        latex_enable_color=args.latex_enable_color,
+        digits=args.digits,
     )
     return 0
 
@@ -190,6 +187,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Output format: stdout (default) for plain text, csv for CSV, "
             'latex for LaTeX tabular (requires "latex" optional dependencies)'
+        ),
+    )
+    parser.add_argument(
+        "--digits",
+        type=int,
+        default=3,
+        metavar="N",
+        help=(
+            "Number of digits after the decimal point for numeric results (default: 3)."
         ),
     )
     parser.add_argument(
