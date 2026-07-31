@@ -1,5 +1,7 @@
+from collections.abc import Collection, Mapping
 from functools import reduce
-from typing import Collection, Generic, Mapping
+from typing import Generic
+
 from differential_coverage.types import CollectionReducer, EdgeId, TrialId, ValueReducer
 
 

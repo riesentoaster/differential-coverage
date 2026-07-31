@@ -95,7 +95,7 @@ def test_read_llvm_cov_block_reads_calc_export(calc_coverage_dir: Path) -> None:
     export = _calc_export(calc_coverage_dir, "approach_a", "t1.json")
     edges = llvm_cov.read(export, granularity="block")
     assert edges
-    assert not any(edge.endswith(":true") or edge.endswith(":false") for edge in edges)
+    assert not any(edge.endswith((":true", ":false")) for edge in edges)
 
 
 def test_read_llvm_cov_expansion_branches(llvm_exports: dict[str, Path]) -> None:

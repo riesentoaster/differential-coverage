@@ -32,9 +32,7 @@ def detect(path: Path) -> bool:
         return False
     if num_files <= 0 or num_first > num_files:
         return False
-    has_marker = any(
-        line.startswith("STARTED ") or line.startswith("COV ") for line in lines
-    )
+    has_marker = any(line.startswith(("STARTED ", "COV ")) for line in lines)
     return has_marker
 
 

@@ -1,14 +1,15 @@
+import warnings
+from collections.abc import Collection, Mapping
 from functools import reduce
 from pathlib import Path
-from typing import Collection, Generic, Mapping
-import warnings
+from typing import Generic
 
-from differential_coverage.readers import GranularityArg, InputFormat
-from differential_coverage.fs import read_campaign_dir
 from differential_coverage.approach_data import ApproachData
+from differential_coverage.fs import read_campaign_dir
+from differential_coverage.readers import GranularityArg, InputFormat
 from differential_coverage.types import (
-    EdgeId,
     ApproachId,
+    EdgeId,
     TrialId,
 )
 
@@ -75,6 +76,13 @@ class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
     @property
     def approaches(self) -> Mapping[ApproachId, ApproachData[TrialId, EdgeId]]:
         return self._approaches
+
+    def coverage_counts(self) -> dict[ApproachId, int]:
+        """Absolute coverage count per approach: size of the union of all trial edges."""
+        return {
+            approach_name: len(approach_data.edges_union)
+            for approach_name, approach_data in self._approaches.items()
+        }
 
     def relscores(self) -> dict[ApproachId, float]:
         all_edges = reduce(

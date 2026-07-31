@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pytest
 
 from differential_coverage.api import DifferentialCoverage
@@ -68,3 +69,13 @@ def test_relscores_multiple_approaches() -> None:
             "approach_c": 0.5,  # 3 is not hit by approach_a, but only hit in half of the trials
         }
     )
+
+
+def test_coverage_counts() -> None:
+    dc = DifferentialCoverage(SAMPLE_CAMPAIGN_CONTENT)
+    assert dc.coverage_counts() == {
+        "approach_a": 3,  # union of {1,2} and {1,3}
+        "approach_b": 2,  # union of {1,3}, {1,3}, {1}
+        "approach_c": 3,  # union of {1,2,3} and {1,2,3}
+        "seeds": 1,  # {1}
+    }

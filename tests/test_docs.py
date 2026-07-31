@@ -4,9 +4,9 @@ from typing import Any
 
 def test_docs() -> None:
     from differential_coverage import (
-        DifferentialCoverage,
         ApproachData,
         CollectionReducer,
+        DifferentialCoverage,
         ValueReducer,
     )
 
@@ -44,3 +44,7 @@ def test_docs() -> None:
     relscores: dict[str, float] = dc.relscores()
     for approach_name, relscore in relscores.items():
         print(f"relscore {approach_name}: {relscore}")
+
+    counts: dict[str, int] = dc.coverage_counts()
+    for approach_name, count in counts.items():
+        print(f"coverage {approach_name}: {count}")

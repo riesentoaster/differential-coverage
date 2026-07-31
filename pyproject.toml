@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "differential_coverage"
-version = "1.2.1"
+version = "1.3.0"
 description = "Compute differential coverage, a better way of comparing testing tools."
 readme = "README.md"
 license = "MIT"
@@ -37,6 +37,11 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.ruff.lint]
+ignore = [
+  "UP045", # Optional[X] -> X | None
+]
 
 [project.scripts]
 differential-coverage = "differential_coverage:main"

@@ -1,6 +1,7 @@
+import pytest
+
 from differential_coverage.approach_data import ApproachData
 from differential_coverage.types import CollectionReducer, ValueReducer
-import pytest
 
 
 @pytest.mark.parametrize(

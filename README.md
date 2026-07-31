@@ -14,6 +14,7 @@ In principle, differential coverage measures how much of approach $a_2$'s covera
 
 - `relcov` does exactly this. It is an *asymetrical* measure between coverage of two approaches. If the approach relies on randomness (such as most fuzzers), it can aggregate over multiple trials of these.
 - `relscore` aggregates all this data to an order of all approaches. This measure, compared to simple coverage numbers, takes into account and values higher approaches that can cover code that no other approach covers. However, compared to `relcov`, this hides a lot of information in this aggregation.
+- `count` just reports absolute coverage counts (union of covered edges/blocks/branches across trials) per approach — useful as a baseline, but without the differential comparison.
 
 For more precise definitions, including formulas, look at [DEFINITIONS.md](./DEFINITIONS.md).
 
@@ -122,13 +123,14 @@ pip install differential-coverage[latex]
 Generally, the command line interface follows the following structure:
 
 ```bash
-differential-coverage {relcov,relscore} [--input-format {auto,afl-showmap,llvm-cov,libfuzzer-merge}] [--granularity {auto,branch,block,edge}] <campaign-dir>
+differential-coverage {relcov,relscore,count} [--input-format {auto,afl-showmap,llvm-cov,libfuzzer-merge}] [--granularity {auto,branch,block,edge}] <campaign-dir>
 ```
 
 Examples:
 
 ```bash
 differential-coverage relscore ./coverage_data
+differential-coverage count ./coverage_data
 differential-coverage --input-format llvm-cov relcov ./coverage_data
 differential-coverage --output csv relscore ./coverage_data
 ```
@@ -181,6 +183,10 @@ for a1_name, a1_data in dc.approaches.items():
 relscores: dict[str, float] = dc.relscores()
 for approach_name, relscore in relscores.items():
     print(f"relscore {approach_name}: {relscore}")
+
+counts: dict[str, int] = dc.coverage_counts()
+for approach_name, count in counts.items():
+    print(f"coverage {approach_name}: {count}")
 
 ```
 
