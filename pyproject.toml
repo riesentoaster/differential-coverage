@@ -38,5 +38,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
+[tool.ruff.lint]
+ignore = [
+  "UP045", # Optional[X] -> X | None
+]
+
 [project.scripts]
 differential-coverage = "differential_coverage:main"

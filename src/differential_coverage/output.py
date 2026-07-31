@@ -6,7 +6,6 @@ import csv
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, Optional
 
-
 from differential_coverage.types import ApproachId
 
 OutputFormat = Literal["stdout", "csv", "latex"]
@@ -23,8 +22,7 @@ class _PrinterIO:
         # and avoid printing empty chunks.
         if not s:
             return 0
-        if s.endswith("\n"):
-            s = s[:-1]
+        s = s.removesuffix("\n")
         if s:
             self._printer(s)
         return len(s)
@@ -307,7 +305,9 @@ def _print_relcov_corpus_table_latex(
     printer: Callable[[str], None],
 ) -> None:
     try:
-        from pylatex.utils import escape_latex  # type: ignore[import-untyped] # does not provide types
+        from pylatex.utils import (  # type: ignore[import-untyped] # does not provide types
+            escape_latex,
+        )
     except ImportError:
         raise ImportError('latex support requires the "latex" optional dependencies')
 
@@ -362,7 +362,7 @@ def _colormap_light_hex(t: float, *, colormap: str = "viridis") -> str:
     if colormap not in colormaps:
         raise ValueError(f"Invalid colormap: {colormap}")
     cmap = colormaps[colormap]
-    [r, g, b, a] = cmap(t)
+    [r, g, b, _a] = cmap(t)
     [r, g, b] = [1 - ((1 - e) * 0.3) for e in [r, g, b]]
 
     return mcolors.to_hex((r, g, b), keep_alpha=False)[1:].upper()

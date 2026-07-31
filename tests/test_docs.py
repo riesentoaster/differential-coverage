@@ -4,9 +4,9 @@ from typing import Any
 
 def test_docs() -> None:
     from differential_coverage import (
-        DifferentialCoverage,
         ApproachData,
         CollectionReducer,
+        DifferentialCoverage,
         ValueReducer,
     )
 

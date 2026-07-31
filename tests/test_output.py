@@ -2,7 +2,7 @@
 
 import csv
 import io
-from typing import Callable
+from collections.abc import Callable
 
 from differential_coverage.output import (
     print_counts,

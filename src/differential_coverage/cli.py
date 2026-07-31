@@ -1,9 +1,9 @@
 import argparse
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from importlib import metadata
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 from differential_coverage.api import DifferentialCoverage
 from differential_coverage.fs import read_campaign_dir

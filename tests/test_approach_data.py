@@ -1,9 +1,11 @@
 from copy import deepcopy
 from typing import Any
+
+import pytest
+from test_api import SAMPLE_CAMPAIGN_CONTENT
+
 from differential_coverage.approach_data import ApproachData
 from differential_coverage.types import CollectionReducer, ValueReducer
-from test_api import SAMPLE_CAMPAIGN_CONTENT
-import pytest
 
 
 def test_constructor() -> None:
@@ -52,7 +54,7 @@ def test_edges_by_trial(trials: dict[str, set[int]]) -> None:
 
 def test_eq() -> None:
     approach_data = ApproachData({"t1": {1, 2}})
-    assert approach_data == approach_data  # eq to self
+    assert approach_data == approach_data  # eq to self # noqa: PLR0124
     assert approach_data == deepcopy(approach_data)  # eq to deepcopy
     assert approach_data == ApproachData({"t1": {1, 2}})  # eq to same data
     assert approach_data != ApproachData({"t1": {1, 2, 3}})  # different data
@@ -162,7 +164,7 @@ def test_relcov_value_reducer() -> None:
         else:
             return original_getattr(self, name)
 
-    setattr(ValueReducer, "__getattribute__", spy_getattr)
+    setattr(ValueReducer, "__getattribute__", spy_getattr)  # noqa: B010
 
     res = lhs.relcov(rhs, value_reducer=ValueReducer.MEDIAN)
     assert res == 0.5  # default median from superclass
@@ -189,7 +191,7 @@ def test_relcov_collection_reducer() -> None:
         else:
             return original_getattr(self, name)
 
-    setattr(CollectionReducer, "__getattribute__", spy_getattr)
+    setattr(CollectionReducer, "__getattribute__", spy_getattr)  # noqa: B010
 
     res = lhs.relcov(rhs, collection_reducer=CollectionReducer.UNION)
     assert res == 0.5  # default: union of rhs, so half is reached

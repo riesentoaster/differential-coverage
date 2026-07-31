@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterable
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from statistics import mean, median
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 if TYPE_CHECKING:
     from differential_coverage.approach_data import ApproachData

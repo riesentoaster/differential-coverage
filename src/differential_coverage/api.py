@@ -1,14 +1,15 @@
+import warnings
+from collections.abc import Collection, Mapping
 from functools import reduce
 from pathlib import Path
-from typing import Collection, Generic, Mapping
-import warnings
+from typing import Generic
 
-from differential_coverage.readers import GranularityArg, InputFormat
-from differential_coverage.fs import read_campaign_dir
 from differential_coverage.approach_data import ApproachData
+from differential_coverage.fs import read_campaign_dir
+from differential_coverage.readers import GranularityArg, InputFormat
 from differential_coverage.types import (
-    EdgeId,
     ApproachId,
+    EdgeId,
     TrialId,
 )
 
