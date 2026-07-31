@@ -46,26 +46,50 @@ def print_scores(
     colormap: str = "viridis",
     latex_enable_color: bool = False,
     digits: int = _DEFAULT_DIGITS,
+    value_label: str = "score",
     printer: Callable[[str], None] = print,
 ) -> None:
-    """Print one score per approach, in the requested output format."""
+    """Print one numeric value per approach, in the requested output format."""
     name_sorted = sorted(scores.items(), key=lambda x: x[0])
     performance_sorted = sorted(name_sorted, key=lambda x: x[1], reverse=True)
 
     if output == "stdout":
         _print_scores_plain(performance_sorted, digits=digits, printer=printer)
     elif output == "csv":
-        _print_scores_csv(performance_sorted, digits=digits, printer=printer)
+        _print_scores_csv(
+            performance_sorted, digits=digits, value_label=value_label, printer=printer
+        )
     elif output == "latex":
         _print_scores_latex(
             performance_sorted,
             enable_color=latex_enable_color,
             colormap=colormap,
             digits=digits,
+            value_label=value_label,
             printer=printer,
         )
     else:
         raise ValueError(f"Invalid output format: {output}")
+
+
+def print_counts(
+    counts: Mapping[ApproachId, int],
+    *,
+    output: OutputFormat = "stdout",
+    colormap: str = "viridis",
+    latex_enable_color: bool = False,
+    printer: Callable[[str], None] = print,
+) -> None:
+    """Print one absolute coverage count per approach, in the requested output format."""
+    print_scores(
+        {name: float(count) for name, count in counts.items()},
+        output=output,
+        colormap=colormap,
+        latex_enable_color=latex_enable_color,
+        digits=0,
+        value_label="coverage",
+        printer=printer,
+    )
 
 
 def _print_scores_plain(
@@ -82,10 +106,11 @@ def _print_scores_csv(
     performance_sorted: Sequence[tuple[ApproachId, float]],
     *,
     digits: int,
+    value_label: str,
     printer: Callable[[str], None],
 ) -> None:
     writer = csv.writer(_PrinterIO(printer))
-    writer.writerow(("approach", "score"))
+    writer.writerow(("approach", value_label))
     for approach, score in performance_sorted:
         writer.writerow((approach, _format_float(score, digits)))
 
@@ -110,11 +135,12 @@ def _print_scores_latex(
     enable_color: bool = False,
     colormap: str = "viridis",
     digits: int,
+    value_label: str,
     printer: Callable[[str], None],
 ) -> None:
-    """LaTeX table (optionally with score cells colored by value)."""
+    """LaTeX table (optionally with value cells colored by value)."""
     printer(r"\begin{tabular}{lr}")
-    printer(r"approach & score \\")
+    printer(rf"approach & {value_label} \\")
     if not performance_sorted:
         printer(r"\end{tabular}")
         return

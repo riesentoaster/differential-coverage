@@ -76,6 +76,13 @@ class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
     def approaches(self) -> Mapping[ApproachId, ApproachData[TrialId, EdgeId]]:
         return self._approaches
 
+    def coverage_counts(self) -> dict[ApproachId, int]:
+        """Absolute coverage count per approach: size of the union of all trial edges."""
+        return {
+            approach_name: len(approach_data.edges_union)
+            for approach_name, approach_data in self._approaches.items()
+        }
+
     def relscores(self) -> dict[ApproachId, float]:
         all_edges = reduce(
             lambda x, y: x.union(y),

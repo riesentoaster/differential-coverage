@@ -7,7 +7,11 @@ from typing import Optional, Sequence
 
 from differential_coverage.api import DifferentialCoverage
 from differential_coverage.fs import read_campaign_dir
-from differential_coverage.output import print_relcov_corpus_table, print_scores
+from differential_coverage.output import (
+    print_counts,
+    print_relcov_corpus_table,
+    print_scores,
+)
 
 # All subcommands expect this directory layout (one campaign dir, no moving files).
 CAMPAIGN_DIR_HELP = (
@@ -90,6 +94,19 @@ def cmd_relscore(args: argparse.Namespace) -> int:
         colormap=args.colormap,
         latex_enable_color=args.latex_enable_color,
         digits=args.digits,
+    )
+    return 0
+
+
+def cmd_count(args: argparse.Namespace) -> int:
+    campaign = _load_campaign(args)
+    dc = DifferentialCoverage(campaign)
+    counts = dc.coverage_counts()
+    print_counts(
+        counts,
+        output=args.output,
+        colormap=args.colormap,
+        latex_enable_color=args.latex_enable_color,
     )
     return 0
 
@@ -251,6 +268,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_relscore.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
     p_relscore.set_defaults(func=cmd_relscore)
+
+    p_count = subparsers.add_parser(
+        "count",
+        help=(
+            "Print absolute coverage counts (union of covered edges/blocks/branches "
+            "across trials) for each approach. Does not compute differential coverage."
+        ),
+    )
+    p_count.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
+    p_count.set_defaults(func=cmd_count)
 
     return parser
 

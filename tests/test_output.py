@@ -4,7 +4,11 @@ import csv
 import io
 from typing import Callable
 
-from differential_coverage.output import print_relcov_corpus_table, print_scores
+from differential_coverage.output import (
+    print_counts,
+    print_relcov_corpus_table,
+    print_scores,
+)
 
 # Deliberately unsorted order for both corpus (columns) and table (rows)
 _UNSORTED_CORPUS = ["z_approach", "a_approach", "m_approach"]
@@ -107,6 +111,32 @@ def test_print_scores_respects_digits() -> None:
     print_scores(scores, output="stdout", digits=4, printer=printer)
 
     assert captured == ["a: 0.3333"]
+
+
+def test_print_counts_uses_printer_stdout() -> None:
+    """print_counts writes integer coverage counts via the provided printer."""
+    counts = {"b": 2, "a": 5}
+    captured, printer = _capture_printer()
+
+    print_counts(counts, output="stdout", printer=printer)
+
+    assert captured == ["a: 5", "b: 2"]
+
+
+def test_print_counts_uses_printer_csv() -> None:
+    """print_counts CSV output is routed through the provided printer."""
+    counts = {"b": 2, "a": 5}
+    captured, printer = _capture_printer()
+
+    print_counts(counts, output="csv", printer=printer)
+
+    csv_text = "\n".join(captured)
+    reader = csv.reader(io.StringIO(csv_text))
+    rows = list(reader)
+
+    assert rows[0] == ["approach", "coverage"]
+    assert rows[1] == ["a", "5"]
+    assert rows[2] == ["b", "2"]
 
 
 def test_relcov_table_respects_digits_csv() -> None:

@@ -287,3 +287,46 @@ def test_cli_digits_relscore() -> None:
         score = line.split(":", 1)[1].strip()
         assert "." in score
         assert len(score.split(".", 1)[1]) == 4
+
+
+def test_cli_count() -> None:
+    """CLI count prints absolute coverage counts sorted descending."""
+    code, out, _ = _run_cli(["count", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    lines = [s.strip() for s in out.strip().splitlines()]
+    assert len(lines) == 4
+    # Sample: approach_a=3, approach_c=3, approach_b=2, seeds=1
+    counts = {}
+    for line in lines:
+        name, count = line.split(":", 1)
+        counts[name.strip()] = int(count.strip())
+    assert counts == {
+        "approach_a": 3,
+        "approach_b": 2,
+        "approach_c": 3,
+        "seeds": 1,
+    }
+    # Sorted by count descending; ties broken by name ascending
+    assert lines[0].startswith("approach_a:") or lines[0].startswith("approach_c:")
+    assert lines[-1].startswith("seeds:")
+
+
+def test_cli_csv_count() -> None:
+    """CLI --output csv with count outputs CSV with header approach,coverage."""
+    code, out, _ = _run_cli(["--output", "csv", "count", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    lines = out.strip().splitlines()
+    assert lines[0] == "approach,coverage"
+    assert len(lines) == 5  # header + 4 approaches
+    assert any(line.startswith("approach_a,3") for line in lines[1:])
+    assert any(line.startswith("seeds,1") for line in lines[1:])
+
+
+def test_cli_latex_count() -> None:
+    """CLI --output latex with count outputs LaTeX tabular."""
+    code, out, _ = _run_cli(["--output", "latex", "count", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    lines = out.strip().splitlines()
+    assert any(line.startswith(r"\begin{tabular}") for line in lines)
+    assert any("coverage" in line for line in lines)
+    assert lines[-1] == r"\end{tabular}"
