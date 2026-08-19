@@ -135,6 +135,13 @@ differential-coverage --input-format llvm-cov relcov ./coverage_data
 differential-coverage --output csv relscore ./coverage_data
 ```
 
+To avoid re-parsing a large campaign, `pickle` saves the parsed data to a file that any subcommand can read back via `--input-format pickle`:
+
+```bash
+differential-coverage pickle ./coverage_data campaign.pkl
+differential-coverage --input-format pickle relscore campaign.pkl
+```
+
 There are more options available, e.g. for output as csv or (colored) LaTeX table:
 
 ```
@@ -156,6 +163,9 @@ dc: DifferentialCoverage[str, str, Any]
 
 # read from campaign directory, see above for structure
 dc = DifferentialCoverage.from_campaign_dir("<your-input-dir>")
+# or save/load the parsed data as a versioned pickle file
+dc.to_pickle(Path("campaign.pkl"))
+dc = DifferentialCoverage.from_pickle(Path("campaign.pkl"))
 # or from a memory structure
 dc = DifferentialCoverage(
     {

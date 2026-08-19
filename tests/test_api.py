@@ -79,3 +79,55 @@ def test_coverage_counts() -> None:
         "approach_c": 3,  # union of {1,2,3} and {1,2,3}
         "seeds": 1,  # {1}
     }
+
+
+def test_pickle_roundtrip(tmp_path: Path) -> None:
+    pkl = tmp_path / "campaign.pkl"
+    dc = DifferentialCoverage(SAMPLE_CAMPAIGN_CONTENT)
+    dc.to_pickle(pkl)
+    loaded: DifferentialCoverage[str, str, str] = DifferentialCoverage.from_pickle(pkl)
+    assert loaded.approaches == dc.approaches
+
+
+def test_from_pickle_rejects_unknown_version(tmp_path: Path) -> None:
+    import pickle
+
+    pkl = tmp_path / "campaign.pkl"
+    with pkl.open("wb") as f:
+        pickle.dump({"format_version": 999, "campaign": {}}, f)
+    with pytest.raises(ValueError, match="format version 999"):
+        DifferentialCoverage.from_pickle(pkl)
+
+
+def test_from_pickle_rejects_foreign_pickle(tmp_path: Path) -> None:
+    import pickle
+
+    pkl = tmp_path / "other.pkl"
+    with pkl.open("wb") as f:
+        pickle.dump(["not", "an", "envelope"], f)
+    with pytest.raises(ValueError, match="not a differential-coverage pickle"):
+        DifferentialCoverage.from_pickle(pkl)
+
+
+@pytest.mark.parametrize(
+    "campaign",
+    [
+        None,  # missing key entirely
+        ["not", "a", "mapping"],
+        {"approach_a": ["not", "a", "mapping"]},
+        {"approach_a": {"t1": 42}},  # edges not a collection
+    ],
+)
+def test_from_pickle_rejects_malformed_campaign(
+    tmp_path: Path, campaign: object
+) -> None:
+    import pickle
+
+    pkl = tmp_path / "campaign.pkl"
+    envelope: dict[str, object] = {"format_version": 1}
+    if campaign is not None:
+        envelope["campaign"] = campaign
+    with pkl.open("wb") as f:
+        pickle.dump(envelope, f)
+    with pytest.raises(ValueError, match="malformed campaign structure"):
+        DifferentialCoverage.from_pickle(pkl)

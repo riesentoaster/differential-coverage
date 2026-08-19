@@ -42,15 +42,27 @@ def _load_campaign(
 ) -> dict[str, dict[str, set[str]]]:
     """Load a campaign directory and apply any CLI-level filters."""
     root = args.dir.resolve()
-    try:
-        campaign = read_campaign_dir(
-            root,
-            input_format=args.input_format,
-            granularity=args.granularity,
-            max_workers=args.max_workers,
-        )
-    except ValueError as e:
-        raise SystemExit(e) from e
+    if args.input_format == "pickle":
+        try:
+            dc: DifferentialCoverage[str, str, str] = DifferentialCoverage.from_pickle(
+                root
+            )
+        except ValueError as e:
+            raise SystemExit(e) from e
+        campaign = {
+            name: {trial: set(edges) for trial, edges in data.edges_by_trial.items()}
+            for name, data in dc.approaches.items()
+        }
+    else:
+        try:
+            campaign = read_campaign_dir(
+                root,
+                input_format=args.input_format,
+                granularity=args.granularity,
+                max_workers=args.max_workers,
+            )
+        except ValueError as e:
+            raise SystemExit(e) from e
 
     include_patterns = getattr(args, "include_approach", []) or []
     exclude_patterns = getattr(args, "exclude_approach", []) or []
@@ -111,6 +123,13 @@ def cmd_count(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_pickle(args: argparse.Namespace) -> int:
+    campaign = _load_campaign(args)
+    dc = DifferentialCoverage(campaign)
+    dc.to_pickle(args.file)
+    return 0
+
+
 def cmd_relcov_performance_over_approach(args: argparse.Namespace) -> int:
     campaign = _load_campaign(args)
 
@@ -148,12 +167,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--input-format",
-        choices=["auto", "afl-showmap", "llvm-cov", "libfuzzer-merge"],
+        choices=["auto", "afl-showmap", "llvm-cov", "libfuzzer-merge", "pickle"],
         default="auto",
         help=(
             "Input format for trial files: auto (default) detects from file "
             "content; afl-showmap for id:count files; llvm-cov for export JSON; "
-            "libfuzzer-merge for -merge=1 control files."
+            "libfuzzer-merge for -merge=1 control files; pickle to read a file "
+            "written by the pickle subcommand (pass the file instead of a "
+            "campaign directory)."
         ),
     )
     parser.add_argument(
@@ -278,6 +299,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_count.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
     p_count.set_defaults(func=cmd_count)
+
+    p_pickle = subparsers.add_parser(
+        "pickle",
+        help=(
+            "Read a campaign and pickle the resulting DifferentialCoverage "
+            "object to a file, readable later via --input-format pickle."
+        ),
+    )
+    p_pickle.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
+    p_pickle.add_argument("file", type=Path, help="Path of the pickle file to write.")
+    p_pickle.set_defaults(func=cmd_pickle)
 
     return parser
 
