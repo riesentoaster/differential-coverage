@@ -331,3 +331,16 @@ def test_cli_latex_count() -> None:
     assert any(line.startswith(r"\begin{tabular}") for line in lines)
     assert any("coverage" in line for line in lines)
     assert lines[-1] == r"\end{tabular}"
+
+
+def test_cli_pickle_roundtrip(tmp_path: Path) -> None:
+    """CLI pickle writes a file that --input-format pickle reads back unchanged."""
+    pkl = tmp_path / "campaign.pkl"
+    code, _, _ = _run_cli(["pickle", str(SAMPLE_SHOWMAP_DIR), str(pkl)])
+    assert code == 0
+    assert pkl.is_file()
+
+    _, expected, _ = _run_cli(["relscore", str(SAMPLE_SHOWMAP_DIR)])
+    code, out, _ = _run_cli(["--input-format", "pickle", "relscore", str(pkl)])
+    assert code == 0
+    assert out == expected

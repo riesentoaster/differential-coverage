@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 
-def test_docs() -> None:
+def test_docs(tmp_path: Path) -> None:
     from differential_coverage import (
         ApproachData,
         CollectionReducer,
@@ -17,6 +17,9 @@ def test_docs() -> None:
     dc = DifferentialCoverage.from_campaign_dir(
         Path(__file__).parent / "sample_coverage"
     )
+    # or save/load the parsed data as a versioned pickle file
+    dc.to_pickle(tmp_path / "campaign.pkl")
+    dc = DifferentialCoverage.from_pickle(tmp_path / "campaign.pkl")
     # or from a memory structure
     dc = DifferentialCoverage(
         {

@@ -1,3 +1,4 @@
+import pickle
 import warnings
 from collections.abc import Collection, Mapping
 from functools import reduce
@@ -72,6 +73,48 @@ class DifferentialCoverage(Generic[ApproachId, TrialId, EdgeId]):
                 max_workers=max_workers,
             )
         )
+
+    # Pickle files hold a versioned envelope of builtins (not this class itself),
+    # so old files survive refactorings of the class internals.
+    PICKLE_FORMAT_VERSION = 1
+
+    @classmethod
+    def from_pickle(
+        cls: type["DifferentialCoverage[ApproachId, TrialId, EdgeId]"],
+        path: Path,
+    ) -> "DifferentialCoverage[ApproachId, TrialId, EdgeId]":
+        with path.open("rb") as f:
+            envelope = pickle.load(f)
+        if not isinstance(envelope, dict) or "format_version" not in envelope:
+            raise ValueError(f"{path} is not a differential-coverage pickle file")
+        version = envelope["format_version"]
+        if version != cls.PICKLE_FORMAT_VERSION:
+            raise ValueError(
+                f"Unsupported pickle format version {version} in {path}; "
+                f"this version of differential-coverage supports "
+                f"version {cls.PICKLE_FORMAT_VERSION}"
+            )
+        campaign = envelope.get("campaign")
+        if not isinstance(campaign, Mapping) or not all(
+            isinstance(trials, Mapping)
+            and all(isinstance(edges, Collection) for edges in trials.values())
+            for trials in campaign.values()
+        ):
+            raise ValueError(
+                f"Corrupt pickle file {path}: malformed campaign structure"
+            )
+        return cls(campaign)
+
+    def to_pickle(self, path: Path) -> None:
+        envelope = {
+            "format_version": self.PICKLE_FORMAT_VERSION,
+            "campaign": {
+                name: {t: set(e) for t, e in data.edges_by_trial.items()}
+                for name, data in self._approaches.items()
+            },
+        }
+        with path.open("wb") as f:
+            pickle.dump(envelope, f)
 
     @property
     def approaches(self) -> Mapping[ApproachId, ApproachData[TrialId, EdgeId]]:
