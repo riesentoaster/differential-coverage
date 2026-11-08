@@ -37,7 +37,8 @@ jobs:
         run: pytest
 
   llvm:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is 26.04, which has no clang-14/16 and no apt.llvm.org repo for them
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
