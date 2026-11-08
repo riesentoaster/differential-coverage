@@ -151,6 +151,29 @@ def cmd_relcov_performance_over_approach(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gain(args: argparse.Namespace) -> int:
+    campaign = _load_campaign(args)
+
+    dc = DifferentialCoverage(campaign)
+    approaches = list(dc.approaches.keys())
+    # rows: approaches, columns: baselines
+    table = {
+        a: {b: dc.approaches[b].gain(dc.approaches[a]) for b in approaches}
+        for a in dc.approaches
+    }
+    print_relcov_corpus_table(
+        approaches,
+        table,
+        output=args.output,
+        colormap=args.colormap,
+        latex_rotate_headers=args.latex_rotate_headers,
+        latex_enable_color=args.latex_enable_color,
+        latex_log_color_scale=True,
+        digits=args.digits,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="differential-coverage",
@@ -275,11 +298,23 @@ def build_parser() -> argparse.ArgumentParser:
         "relcov",
         help=(
             "Compute relcov-based performance of each approach relative to "
-            "reference approaches. Prints a table (all approaches × all approaches as reference)."
+            "reference approaches. Prints a table (all approaches × all approaches as reference) "
+            "where each value is the fraction of the coverage of `column` that `row` also reaches (0 to 1)."
         ),
     )
     p_relcov.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
     p_relcov.set_defaults(func=cmd_relcov_performance_over_approach)
+
+    p_gain = subparsers.add_parser(
+        "gain",
+        help=(
+            "Compute gain (1/relcov) of each approach relative to each baseline approach. "
+            "Prints a table where each value says how many times larger the coverage of "
+            "`row` is than the part of it that `column` also reaches (>= 1)."
+        ),
+    )
+    p_gain.add_argument("dir", type=Path, help=CAMPAIGN_DIR_HELP)
+    p_gain.set_defaults(func=cmd_gain)
 
     p_relscore = subparsers.add_parser(
         "relscore",

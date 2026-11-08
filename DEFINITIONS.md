@@ -64,6 +64,24 @@ $$
 
 > In the full `relcov` table, these values are the other values between approaches.
 
+## `gain`
+
+`gain` is the inverse of the [relative performance](#performance-over-other-approaches) and answers "how many times more code does the approach $a$ reach than the part it shares with the baseline approach $b$?". It is calculated like that performance (so the same reductions over the trials $T_b$ of $b$ apply, median by default), but inverted after the reduction. Or, in a formula:
+
+$$
+\begin{align}
+\text{gain}(a, b)=\frac{1}{\text{med}({\text{relcov}(\text{cov}(t),a)})}\quad\forall t\in T_b
+\end{align}
+$$
+
+For a single trial of $b$ with coverage $c$, this is $\frac{\left|\text{upper}(a)\right|}{\left|c\cap\text{upper}(a)\right|}$.
+
+- $\text{gain}(a, b)$ is $\geq 1$.
+  - A value of exactly $1$ means $a$ does not reach any code beyond what $b$ already reached.
+  - A value $\gt 1$ means the coverage of $a$ is that many times the intersection reached by both approaches (e.g. $2$: half of what $a$ reaches is not reached by $b$).
+  - If there is no overlap, $\text{relcov}=0$ and $\text{gain}(a, b)$ is $\infty$.
+- Code reached only by $b$ is ignored, so this is not a ratio of total coverage (use `count` for that).
+
 ## `relscore`
 
 `relscore` was defined as the following[^SBFT]:

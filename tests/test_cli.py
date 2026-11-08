@@ -344,3 +344,34 @@ def test_cli_pickle_roundtrip(tmp_path: Path) -> None:
     code, out, _ = _run_cli(["--input-format", "pickle", "relscore", str(pkl)])
     assert code == 0
     assert out == expected
+
+
+def test_cli_gain_table() -> None:
+    """CLI gain prints a table with 1.0 on the diagonal-ish minimum."""
+    code, out, _ = _run_cli(["gain", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0
+    lines = [s.strip() for s in out.strip().splitlines()]
+    assert "approach" in lines[0].lower()
+    assert len(lines) == 5
+
+
+def test_cli_gain_table_is_transposed_with_baselines_as_columns() -> None:
+    """In the gain table, rows are approaches and columns are baselines."""
+    code, relcov_out, _ = _run_cli(
+        ["--output", "csv", "relcov", str(SAMPLE_SHOWMAP_DIR)]
+    )
+    code2, gain_out, _ = _run_cli(["--output", "csv", "gain", str(SAMPLE_SHOWMAP_DIR)])
+    assert code == 0 and code2 == 0
+
+    def parse(out: str) -> dict[str, dict[str, float]]:
+        lines = [ln.split(",") for ln in out.strip().splitlines()]
+        return {
+            r[0]: dict(zip(lines[0][1:], map(float, r[1:]), strict=True))
+            for r in lines[1:]
+        }
+
+    relcov = parse(relcov_out)  # relcov[baseline][approach]
+    gain = parse(gain_out)  # gain[approach][baseline]
+    for baseline, row in relcov.items():
+        for approach, value in row.items():
+            assert abs(gain[approach][baseline] - 1 / value) < 1e-2

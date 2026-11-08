@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, Optional
 
@@ -166,10 +167,15 @@ def print_relcov_corpus_table(
     colormap: str = "viridis",
     latex_rotate_headers: Optional[float] = None,
     latex_enable_color: bool = False,
+    latex_log_color_scale: bool = False,
     digits: int = _DEFAULT_DIGITS,
     printer: Callable[[str], None] = print,
 ) -> None:
-    """Print a table of relcov performance: rows = approaches, columns = corpus approaches."""
+    """Print a table of relcov performance: rows = approaches, columns = corpus approaches.
+
+    With latex_log_color_scale, LaTeX cell colors are scaled logarithmically
+    (all values must be positive; infinite values get the maximum color).
+    """
     if not corpus_approaches:
         printer("No corpus approaches (single-trial subdirs) found.")
         return
@@ -194,6 +200,7 @@ def print_relcov_corpus_table(
             table,
             rotate_headers=latex_rotate_headers,
             enable_color=latex_enable_color,
+            log_color_scale=latex_log_color_scale,
             colormap=colormap,
             digits=digits,
             printer=printer,
@@ -289,7 +296,7 @@ def _collect_numeric_values(
     values: list[float] = []
     for row in table.values():
         for val in row.values():
-            if isinstance(val, (int, float)):
+            if isinstance(val, (int, float)) and math.isfinite(val):
                 values.append(float(val))
     return values
 
@@ -300,6 +307,7 @@ def _print_relcov_corpus_table_latex(
     *,
     rotate_headers: Optional[float] = None,
     enable_color: bool = False,
+    log_color_scale: bool = False,
     colormap: str = "viridis",
     digits: int,
     printer: Callable[[str], None],
@@ -317,6 +325,8 @@ def _print_relcov_corpus_table_latex(
     min_v, max_v = (0.0, 0.0)
     if enable_color:
         all_values = _collect_numeric_values(table)
+        if log_color_scale:
+            all_values = [math.log(v) for v in all_values]
         min_v, max_v = _norm_minmax(all_values)
 
     num_cols = 1 + len(col_labels)
@@ -335,7 +345,7 @@ def _print_relcov_corpus_table_latex(
             if val is None:
                 cells.append("")
             elif enable_color:
-                n = _norm_value(val, min_v, max_v)
+                n = _norm_value(math.log(val) if log_color_scale else val, min_v, max_v)
                 hex_color = _colormap_light_hex(n, colormap=colormap)
                 cells.append(
                     rf"\cellcolor[HTML]{{{hex_color}}}{{{_format_float(val, digits)}}}"

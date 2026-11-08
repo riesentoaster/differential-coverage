@@ -196,3 +196,21 @@ def test_relcov_collection_reducer() -> None:
     res = lhs.relcov(rhs, collection_reducer=CollectionReducer.UNION)
     assert res == 0.5  # default: union of rhs, so half is reached
     assert accesses == [ApproachData({"rhs1": {1}, "rhs2": {2}})]
+
+
+def test_gain_is_inverse_of_relcov() -> None:
+    baseline = ApproachData({"t": {1, 2}})
+    target = ApproachData({"t": {1, 2, 3, 4}})
+    assert baseline.gain(target) == 2.0  # target reaches twice as much
+    assert target.gain(baseline) == 1.0  # baseline is fully covered
+    assert baseline.gain(deepcopy(baseline)) == 1.0
+
+
+def test_gain_ignores_baseline_only_coverage() -> None:
+    baseline = ApproachData({"t": {1, 9}})
+    target = ApproachData({"t": {1, 2, 3, 4}})
+    assert baseline.gain(target) == 4.0  # 1/relcov = 4/1
+
+
+def test_gain_without_overlap_is_infinite() -> None:
+    assert ApproachData({"t": {1}}).gain(ApproachData({"t": {2}})) == float("inf")

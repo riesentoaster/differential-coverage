@@ -1,3 +1,4 @@
+import math
 from collections.abc import Collection, Mapping
 from functools import reduce
 from typing import Generic
@@ -49,6 +50,19 @@ class ApproachData(Generic[TrialId, EdgeId]):
             len(edges.intersection(other_reduced)) / len(other_reduced)
             for edges in self.edges_by_trial.values()
         )
+
+    def gain(
+        self,
+        other: "ApproachData[TrialId, EdgeId]",
+        value_reducer: ValueReducer = ValueReducer.MEDIAN,
+        collection_reducer: CollectionReducer = CollectionReducer.UNION,
+    ) -> float:
+        relcov = self.relcov(
+            other, value_reducer=value_reducer, collection_reducer=collection_reducer
+        )
+        if relcov == 0:
+            return math.inf
+        return 1 / relcov
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ApproachData):

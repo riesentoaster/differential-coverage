@@ -12,7 +12,8 @@ Here, *differential coverage* can help: By comparing *what parts* of the target 
 
 In principle, differential coverage measures how much of approach $a_2$'s coverage can also be covered by approach $a_1$. This can be done in multiple ways:
 
-- `relcov` does exactly this. It is an *asymetrical* measure between coverage of two approaches. If the approach relies on randomness (such as most fuzzers), it can aggregate over multiple trials of these.
+- `relcov` does exactly this. It is an *asymetrical* measure between coverage of two approaches. If the approach relies on randomness (such as most fuzzers), it can aggregate over multiple trials of these. In the `relcov` table, each value is the fraction of the coverage of `column` that `row` also reaches (0 to 1).
+- `gain` is `1/relcov(baseline, approach)`: how many times more code `approach` reaches than the part of it `baseline` already reaches (≥ 1). In the `gain` table, each value says how many times larger the coverage of `row` is than the part of it that `column` also reaches.
 - `relscore` aggregates all this data to an order of all approaches. This measure, compared to simple coverage numbers, takes into account and values higher approaches that can cover code that no other approach covers. However, compared to `relcov`, this hides a lot of information in this aggregation.
 - `count` just reports absolute coverage counts (union of covered edges/blocks/branches across trials) per approach — useful as a baseline, but without the differential comparison.
 
@@ -123,7 +124,7 @@ pip install differential-coverage[latex]
 Generally, the command line interface follows the following structure:
 
 ```bash
-differential-coverage {relcov,relscore,count} [--input-format {auto,afl-showmap,llvm-cov,libfuzzer-merge}] [--granularity {auto,branch,block,edge}] <campaign-dir>
+differential-coverage {relcov,gain,relscore,count} [--input-format {auto,afl-showmap,llvm-cov,libfuzzer-merge}] [--granularity {auto,branch,block,edge}] <campaign-dir>
 ```
 
 Examples:
